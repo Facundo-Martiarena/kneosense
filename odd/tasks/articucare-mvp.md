@@ -65,4 +65,13 @@ to execute the plan with automatic decisions. This builds the runnable MVP found
 - `npm test`
 
 ## Progress / evidence
-(updated per task)
+- Status: ALL 12 TASKS DONE for the in-session engineering core.
+- `npx tsc --noEmit`: clean (exit 0).
+- `npm test` (jest-expo): 12 passed / 12 total, 3 suites.
+- `npx expo export --platform ios`: succeeded ("Exported: dist") — full module graph bundles, app boots without import/route errors.
+- Toolchain: project requires Node >= 20; use nvm Node 22.22.1 (Node 18.17 breaks create-expo-app). Run app cmds with that node on PATH.
+- Git: repo initialized at Matequife root; work committed on branch `feat/articucare-mvp`, commit 3c6503a. 79 app files tracked, node_modules ignored. Push/PR left to the user.
+- NOT executed (out of session, per plan): SurgWound AI training, BLE sensor, real Three.js/expo-gl 3D spike, physical-device testing, backend/RGPD real-data handling.
+
+## How to run
+- `cd articucare && npm start` (with Node 22 on PATH), then press i / a / w for iOS / Android / web.

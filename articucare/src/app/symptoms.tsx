@@ -45,9 +45,9 @@ export default function SymptomsScreen() {
     );
   }
 
-  function save() {
+  async function save() {
     if (!demoCase) return;
-    addSymptom({
+    await addSymptom({
       id: uid('sym'),
       caseId: demoCase.scenarioId,
       recordedAt: new Date().toISOString(),

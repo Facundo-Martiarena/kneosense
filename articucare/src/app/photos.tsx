@@ -63,7 +63,7 @@ export default function PhotosScreen() {
         side: 'left',
         assessment: mockAssess(id),
       };
-      addPhoto(record);
+      await addPhoto(record);
     } catch (e) {
       Alert.alert('No se pudo cargar la imagen', String(e));
     } finally {

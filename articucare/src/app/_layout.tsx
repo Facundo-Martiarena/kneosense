@@ -1,8 +1,10 @@
 import { DarkTheme, DefaultTheme, Stack, ThemeProvider } from 'expo-router';
 import * as SplashScreen from 'expo-splash-screen';
+import { useEffect } from 'react';
 import { useColorScheme } from 'react-native';
 
 import { AnimatedSplashOverlay } from '@/components/animated-icon';
+import { useAppStore } from '@/state/appStore';
 
 SplashScreen.preventAutoHideAsync();
 
@@ -13,6 +15,14 @@ SplashScreen.preventAutoHideAsync();
  */
 export default function RootLayout() {
   const colorScheme = useColorScheme();
+  const hydrate = useAppStore((s) => s.hydrate);
+
+  useEffect(() => {
+    hydrate().catch(() => {
+      // Persistence unavailable; the app continues with empty in-memory data.
+    });
+  }, [hydrate]);
+
   return (
     <ThemeProvider value={colorScheme === 'dark' ? DarkTheme : DefaultTheme}>
       <AnimatedSplashOverlay />
