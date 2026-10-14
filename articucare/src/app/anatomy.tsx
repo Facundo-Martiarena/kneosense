@@ -7,6 +7,7 @@ import { ThemedText } from '@/components/themed-text';
 import { useTheme } from '@/hooks/use-theme';
 import { Spacing } from '@/constants/theme';
 import { AnatomyView, type AnatomyAngle } from '@/features/visuals/AnatomyView';
+import { Interactive3DJoint } from '@/features/visuals/Interactive3DJoint';
 import { useCurrentCase } from '@/state/useCurrentCase';
 
 const JOINT_LABELS: Record<string, string> = {
@@ -15,6 +16,8 @@ const JOINT_LABELS: Record<string, string> = {
   ankle: 'Tobillo',
   elbow: 'Codo',
 };
+
+type ViewMode = '2_5d' | '3d';
 
 /**
  * Anatomy 2.5D view. Plan section 6 + RF-07. Shows a generic illustrative joint
@@ -26,6 +29,7 @@ export default function AnatomyScreen() {
   const demoCase = useCurrentCase();
   const theme = useTheme();
   const [angle, setAngle] = useState<AnatomyAngle>('front');
+  const [mode, setMode] = useState<ViewMode>('2_5d'); // 2.5D stays the default
 
   if (!demoCase) {
     return (
@@ -44,30 +48,75 @@ export default function AnatomyScreen() {
         : 0.15;
 
   return (
-    <Screen title={`${JOINT_LABELS[demoCase.joint] ?? demoCase.joint} · 2.5D`}>
+    <Screen title={`${JOINT_LABELS[demoCase.joint] ?? demoCase.joint} · ${mode === '3d' ? '3D' : '2.5D'}`}>
+      <View style={styles.modeRow}>
+        {(
+          [
+            { key: '2_5d', label: '2.5D' },
+            { key: '3d', label: '3D interactivo (experimental)' },
+          ] as { key: ViewMode; label: string }[]
+        ).map((m) => (
+          <Pressable
+            key={m.key}
+            onPress={() => setMode(m.key)}
+            accessibilityRole="button"
+            style={[
+              styles.modeBtn,
+              { backgroundColor: mode === m.key ? '#2563EB' : theme.backgroundElement },
+            ]}>
+            <ThemedText type="small" style={{ color: mode === m.key ? '#FFFFFF' : theme.text }}>
+              {m.label}
+            </ThemedText>
+          </Pressable>
+        ))}
+      </View>
+
       <Card>
-        <View style={styles.center}>
-          <AnatomyView angle={angle} highlight={highlight} />
-        </View>
-        <View style={styles.angleRow}>
-          {(['front', 'side'] as AnatomyAngle[]).map((a) => (
-            <Pressable
-              key={a}
-              onPress={() => setAngle(a)}
-              accessibilityRole="button"
-              style={[
-                styles.angleBtn,
-                {
-                  backgroundColor:
-                    angle === a ? theme.backgroundSelected : theme.background,
-                  borderColor: theme.backgroundSelected,
-                },
-              ]}>
-              <ThemedText type="small">{a === 'front' ? 'Frente' : 'Lateral'}</ThemedText>
-            </Pressable>
-          ))}
-        </View>
+        {mode === '2_5d' ? (
+          <>
+            <View style={styles.center}>
+              <AnatomyView angle={angle} highlight={highlight} />
+            </View>
+            <View style={styles.angleRow}>
+              {(['front', 'side'] as AnatomyAngle[]).map((a) => (
+                <Pressable
+                  key={a}
+                  onPress={() => setAngle(a)}
+                  accessibilityRole="button"
+                  style={[
+                    styles.angleBtn,
+                    {
+                      backgroundColor:
+                        angle === a ? theme.backgroundSelected : theme.background,
+                      borderColor: theme.backgroundSelected,
+                    },
+                  ]}>
+                  <ThemedText type="small">{a === 'front' ? 'Frente' : 'Lateral'}</ThemedText>
+                </Pressable>
+              ))}
+            </View>
+          </>
+        ) : (
+          <>
+            <Interactive3DJoint highlight={highlight} />
+            <ThemedText type="small" themeColor="textSecondary" style={styles.hint}>
+              Arrastrá para rotar. Rota solo si tu build incluye el módulo nativo expo-gl.
+            </ThemedText>
+          </>
+        )}
       </Card>
+
+      {mode === '3d' && (
+        <Card>
+          <ThemedText type="smallBold" style={styles.experimental}>
+            Modo experimental (spike de compatibilidad)
+          </ThemedText>
+          <ThemedText type="small" themeColor="textSecondary">
+            Requiere un development build (no Expo Go). El rendimiento en iOS/Android debe validarse
+            en dispositivo real antes de adoptar 3D como dependencia de producción.
+          </ThemedText>
+        </Card>
+      )}
 
       <Card>
         <ThemedText type="smallBold" style={styles.legend}>
@@ -84,6 +133,12 @@ export default function AnatomyScreen() {
 
 const styles = StyleSheet.create({
   center: { alignItems: 'center' },
+  modeRow: { flexDirection: 'row', gap: Spacing.two, flexWrap: 'wrap' },
+  modeBtn: {
+    paddingHorizontal: Spacing.three,
+    paddingVertical: Spacing.two,
+    borderRadius: Spacing.two,
+  },
   angleRow: { flexDirection: 'row', gap: Spacing.two, justifyContent: 'center', marginTop: Spacing.two },
   angleBtn: {
     paddingHorizontal: Spacing.three,
@@ -91,5 +146,7 @@ const styles = StyleSheet.create({
     borderRadius: Spacing.two,
     borderWidth: 1,
   },
+  hint: { marginTop: Spacing.two, textAlign: 'center' },
+  experimental: { color: '#B45309' },
   legend: { color: '#B45309' },
 });
