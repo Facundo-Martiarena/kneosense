@@ -52,8 +52,33 @@ eas build:run --platform android     # or: --platform ios
 npx expo start --dev-client
 ```
 
+## Demo build (preview) — shareable, no dev client
+
+The `preview` profile produces a release-like build (no Metro/dev server needed)
+for showing the demo. Android is a directly-installable APK; iOS targets the
+Simulator so no paid Apple account is required.
+
+```bash
+# Android APK (no Apple account) — share the file and install it directly:
+eas build --platform android --profile preview
+
+# iOS Simulator demo (no Apple account):
+eas build --platform ios --profile preview
+```
+
+To demo on physical iPhones (ad hoc, requires Apple Developer credentials and
+registered device UDIDs), use `preview-device`:
+
+```bash
+eas build --platform ios --profile preview-device
+```
+
+Download links appear in the EAS build output; `eas build:run -p <platform>`
+installs the finished artifact onto a running emulator/simulator.
+
 ## Profiles (see eas.json)
 - `development`         → dev client, internal distribution; iOS targets the Simulator.
 - `development-device`  → dev client for a physical iOS device (needs Apple creds).
-- `preview`            → internal distribution, release-like, no dev client.
+- `preview`            → release-like demo, no dev client; Android APK + iOS Simulator (no Apple account).
+- `preview-device`     → release-like demo; Android APK + iOS ad hoc for real devices (needs Apple creds).
 - `production`         → store build (auto version increment).

@@ -19,6 +19,9 @@ so not run on their behalf.
 - [x] Created `eas.json` with `development` (iOS simulator, no Apple account),
       `development-device` (physical iOS), `preview`, `production` profiles.
 - [x] Wrote `articucare/BUILD.md` with exact login/build/install commands.
+- [x] Demo `preview` profile: release-like, no dev client; Android APK + iOS Simulator
+      (no Apple account). Added `preview-device` (iOS ad hoc for real devices, needs Apple creds).
+      Documented demo build commands in BUILD.md.
 
 ## Verification
 - `eas.json` valid JSON; `expo config` resolves bundleIdentifier + package.
