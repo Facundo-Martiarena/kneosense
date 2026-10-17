@@ -5,7 +5,7 @@ import { dirname, join } from 'node:path';
 import type { MeasurementQuality, Patient, Photo, SensorReading } from './types.js';
 
 const here = dirname(fileURLToPath(import.meta.url));
-const db = new DatabaseSync(join(here, '..', 'articucare-backoffice.db'));
+const db = new DatabaseSync(join(here, '..', 'kneosense-backoffice.db'));
 
 db.exec(`
   CREATE TABLE IF NOT EXISTS patients (

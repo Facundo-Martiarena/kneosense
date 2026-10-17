@@ -1,4 +1,4 @@
-# Feature: ArticuCare — patch readings in SQLite (not hardcoded) + CRUD
+# Feature: KneoSense — patch readings in SQLite (not hardcoded) + CRUD
 
 ## Objective
 Move the patch's multimodal sensor readings out of hardcoded/generated code into

@@ -1,4 +1,4 @@
-# Spike: ArticuCare — interactive 3D (expo-gl + Three.js)
+# Spike: KneoSense — interactive 3D (expo-gl + Three.js)
 
 ## Objective
 Compatibility spike (plan section 6, "Intermedio: 3D interactivo"; task 11.1 #7):

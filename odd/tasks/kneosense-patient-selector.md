@@ -1,4 +1,4 @@
-# Feature: ArticuCare — patient selector + create patient
+# Feature: KneoSense — patient selector + create patient
 
 ## Objective
 Replace the demo scenario-picker Alert with a real patient selector that lets

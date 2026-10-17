@@ -3,7 +3,7 @@
   "version": "0.1.0",
   "private": true,
   "type": "module",
-  "description": "ArticuCare doctor backoffice API (synthetic MVP).",
+  "description": "KneoSense doctor backoffice API (synthetic MVP).",
   "scripts": {
     "dev": "tsx watch src/index.ts",
     "start": "tsx src/index.ts",

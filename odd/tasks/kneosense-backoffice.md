@@ -1,4 +1,4 @@
-# Feature: ArticuCare — doctor backoffice (backend + web)
+# Feature: KneoSense — doctor backoffice (backend + web)
 
 ## Objective
 A doctor-facing web backoffice to view each patient's values and images, backed
@@ -60,7 +60,7 @@ web reads it live. Built in verifiable slices (Node + TypeScript stack).
 
 ## Status: backoffice COMPLETE (B1–B8)
 Run: `backoffice/server` (`npm start`, :3001) + `backoffice/web` (`npm run dev`,
-:5173). Doctor login demo: medico@articucare.demo / articucare (override via
+:5173). Doctor login demo: medico@kneosense.demo / kneosense (override via
 DOCTOR_EMAIL / DOCTOR_PASSWORD env). Not hosted / not offline. All synthetic.
 
 ## Checks

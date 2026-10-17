@@ -1,7 +1,7 @@
-# Feature: ArticuCare — UI redesign to the mobile mockup
+# Feature: KneoSense — UI redesign to the mobile mockup
 
 ## Objective
-Match the provided HTML mockup (`articucare_mobile_preview.html`): teal identity,
+Match the provided HTML mockup (`kneosense_mobile_preview.html`): teal identity,
 bottom-tab navigation, a Home dashboard, and the mockup's cards/hero/tiles/
 actions/rowitems/info boxes — wired to the real scenario data, preserving the
 mandatory synthetic-data markers.

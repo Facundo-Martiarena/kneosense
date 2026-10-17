@@ -1,4 +1,4 @@
-# Feature: ArticuCare — EAS Update (OTA) config
+# Feature: KneoSense — EAS Update (OTA) config
 
 ## Objective
 Enable over-the-air JS/asset updates so demo builds can receive fixes without a
@@ -17,7 +17,7 @@ rebuild. Pairs with the `preview` demo profile.
 
 ## User's next step (authenticated, outward-facing — their call)
 ```
-cd articucare && eas login
+cd kneosense && eas login
 eas update:configure                       # writes updates.url + extra.eas.projectId (once)
 eas update --branch preview --message "…"  # publish OTA to the preview channel
 ```

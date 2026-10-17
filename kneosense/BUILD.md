@@ -1,4 +1,4 @@
-# ArticuCare — Development build (EAS)
+# KneoSense — Development build (EAS)
 
 A development build is required to run the native modules this project uses
 (`expo-gl` for the experimental 3D view, `expo-sqlite`, `expo-image-picker`).
@@ -11,15 +11,15 @@ Expo Go is NOT enough for the 3D view.
 ## Prerequisites (run in your terminal; use Node >= 20)
 
 ```bash
-# This repo's app lives in ./articucare
-cd articucare
+# This repo's app lives in ./kneosense
+cd kneosense
 
 # EAS CLI + login (uses YOUR Expo account)
 npm install -g eas-cli      # or prefix commands with: npx eas-cli@latest
 eas login
 ```
 
-`eas.json` and the bundle identifiers (`com.articucare.app`) are already
+`eas.json` and the bundle identifiers (`com.kneosense.app`) are already
 configured, so no `eas build:configure` is needed.
 
 ## Build
@@ -86,7 +86,7 @@ One authenticated setup step remains (writes `updates.url` + `extra.eas.projectI
 into app.json using YOUR Expo account):
 
 ```bash
-cd articucare
+cd kneosense
 eas login
 eas update:configure     # links the project and fills updates.url (run once)
 ```

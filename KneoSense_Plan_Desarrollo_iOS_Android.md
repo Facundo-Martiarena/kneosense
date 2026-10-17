@@ -1,4 +1,4 @@
-# ARTICUCARE AI
+# KNEOSENSE AI
 
 **Plan de desarrollo por fases**
 
@@ -117,7 +117,7 @@ interface IMeasurementRepository {
 // En la versión de demostración: MockMeasurementRepository
 ```
 
-Entregable adicional: el archivo ArticuCare_datos_simulados.json acompaña este documento y contiene tres escenarios sintéticos, útiles para iniciar pantallas y pruebas. Sus valores son inventados deliberadamente.
+Entregable adicional: el archivo KneoSense_datos_simulados.json acompaña este documento y contiene tres escenarios sintéticos, útiles para iniciar pantallas y pruebas. Sus valores son inventados deliberadamente.
 
 # 4. Fotografías estandarizadas
 
@@ -269,7 +269,7 @@ La clasificación regulatoria futura dependerá de la finalidad médica prevista
 # 11. Estructura inicial del repositorio
 
 ```text
-articucare/
+kneosense/
   app/ # pantallas Expo Router
   src/components/ # gráficos, etiquetas DEMO, tarjetas
   src/features/measurements/ # modelos + repositorio de bioimpedancia
@@ -285,7 +285,7 @@ articucare/
 
 ## 11.1 Primeras tareas de programación (orden sugerido)
 
-1. Crear repositorio y proyecto TypeScript: npx create-expo-app@latest articucare.
+1. Crear repositorio y proyecto TypeScript: npx create-expo-app@latest kneosense.
 2. Definir tipos de Case, ImpedanceMeasurement, PhotoRecord y VisualAssessment.
 3. Importar el JSON sintético adjunto y montar MockMeasurementRepository.
 4. Implementar navegación y pantalla “Mediciones”; mostrar primero un gráfico con 7 valores ficticios.

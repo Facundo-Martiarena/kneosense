@@ -1,4 +1,4 @@
-# Feature: ArticuCare — multimodal patch signals + decision engine
+# Feature: KneoSense — multimodal patch signals + decision engine
 
 ## Objective
 Model the real patch's multimodal signals (reference + affected skin temperature,

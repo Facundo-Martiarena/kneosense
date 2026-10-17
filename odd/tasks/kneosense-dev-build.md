@@ -1,4 +1,4 @@
-# Feature: ArticuCare — development build prep (EAS)
+# Feature: KneoSense — development build prep (EAS)
 
 ## Objective
 Prepare the project so the user can produce an installable development build
@@ -15,10 +15,10 @@ so not run on their behalf.
 
 ## Scope (done)
 - [x] Installed `expo-dev-client` (~57.0.20).
-- [x] Added `ios.bundleIdentifier` + `android.package` = `com.articucare.app` to app.json.
+- [x] Added `ios.bundleIdentifier` + `android.package` = `com.kneosense.app` to app.json.
 - [x] Created `eas.json` with `development` (iOS simulator, no Apple account),
       `development-device` (physical iOS), `preview`, `production` profiles.
-- [x] Wrote `articucare/BUILD.md` with exact login/build/install commands.
+- [x] Wrote `kneosense/BUILD.md` with exact login/build/install commands.
 - [x] Demo `preview` profile: release-like, no dev client; Android APK + iOS Simulator
       (no Apple account). Added `preview-device` (iOS ad hoc for real devices, needs Apple creds).
       Documented demo build commands in BUILD.md.
@@ -29,7 +29,7 @@ so not run on their behalf.
 
 ## User's next step (authenticated, outward-facing — their call)
 ```
-cd articucare && eas login
+cd kneosense && eas login
 eas build -p android --profile development   # APK, no Apple account
 eas build -p ios     --profile development   # iOS Simulator, no Apple account
 ```

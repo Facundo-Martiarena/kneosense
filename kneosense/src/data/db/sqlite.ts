@@ -6,7 +6,7 @@ import * as SQLite from 'expo-sqlite';
  * is stored; synthetic scenarios stay bundled read-only JSON.
  */
 
-const DB_NAME = 'articucare.db';
+const DB_NAME = 'kneosense.db';
 const SCHEMA_VERSION = 3;
 
 let dbPromise: Promise<SQLite.SQLiteDatabase> | null = null;

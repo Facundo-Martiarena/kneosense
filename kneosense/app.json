@@ -1,18 +1,18 @@
 {
   "expo": {
     "name": "KneoSense",
-    "slug": "articucare",
+    "slug": "kneosense",
     "version": "1.0.0",
     "orientation": "default",
     "icon": "./assets/images/kneosense-logo.png",
-    "scheme": "articucare",
+    "scheme": "kneosense",
     "userInterfaceStyle": "automatic",
     "ios": {
       "icon": "./assets/expo.icon",
-      "bundleIdentifier": "com.articucare.app"
+      "bundleIdentifier": "com.kneosense.app"
     },
     "android": {
-      "package": "com.articucare.app",
+      "package": "com.kneosense.app",
       "adaptiveIcon": {
         "backgroundColor": "#E6F4FE",
         "foregroundImage": "./assets/images/android-icon-foreground.png",

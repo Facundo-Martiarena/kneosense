@@ -13,7 +13,7 @@ import type {
  * readings against PUBLISHED per-signal thresholds and returns an illustrative,
  * non-diagnostic recommendation. Chosen over an ML model because no validated
  * multimodal dataset/model exists for this case and training on synthetic data
- * would only learn the simulation (see odd/tasks/articucare-decision-engine.md).
+ * would only learn the simulation (see odd/tasks/kneosense-decision-engine.md).
  *
  * Cited references:
  * - Temp differential (affected − reference) ≥ 2.2 °C = inflammation alert

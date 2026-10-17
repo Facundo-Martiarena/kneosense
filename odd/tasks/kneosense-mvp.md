@@ -1,8 +1,8 @@
-# Feature: ArticuCare AI — MVP mobile app
+# Feature: KneoSense AI — MVP mobile app
 
 ## Objective
-Bootstrap and implement the engineering core of the ArticuCare AI MVP described in
-`ArticuCare_Plan_Desarrollo_iOS_Android.md`: a React Native + Expo + TypeScript app
+Bootstrap and implement the engineering core of the KneoSense AI MVP described in
+`KneoSense_Plan_Desarrollo_iOS_Android.md`: a React Native + Expo + TypeScript app
 (iOS/Android) that lets a demo patient review synthetic bioimpedance, photos,
 symptoms and an illustrative 2.5D anatomy view — all clearly labelled as synthetic/DEMO.
 
@@ -12,7 +12,7 @@ to execute the plan with automatic decisions. This builds the runnable MVP found
 (plan sections 8, 11, 11.1) with the mandatory safety labelling.
 
 ## Scope (authorized)
-- Scaffold Expo project (expo-router + TypeScript) under `articucare/`.
+- Scaffold Expo project (expo-router + TypeScript) under `kneosense/`.
 - TypeScript contracts: Case, ImpedanceMeasurement, PhotoRecord, VisualAssessment.
 - Mock data layer: bundle synthetic JSON + `MockMeasurementRepository` implementing `IMeasurementRepository`.
 - 7 screens (plan §8): Welcome/demo, Panel, Measurements, Photos, Anatomy 2.5D, Symptoms, History/summary.
@@ -37,7 +37,7 @@ to execute the plan with automatic decisions. This builds the runnable MVP found
 - Artifact language: English identifiers/code; Spanish UI copy (target users are Spanish-speaking patients).
 
 ## Tasks
-- [x] T1 · Scaffold Expo app (expo-router + TS, SDK 57 under `articucare/`). Node 18 too old; used nvm Node 22.22.1.
+- [x] T1 · Scaffold Expo app (expo-router + TS, SDK 57 under `kneosense/`). Node 18 too old; used nvm Node 22.22.1.
 - [x] T2 · TypeScript contracts in `src/types/` (DemoCase, ImpedanceMeasurement, PhotoRecord, VisualAssessment, SymptomEntry, IMeasurementRepository).
 - [x] T3 · Bundled synthetic JSON into `src/data/mocks/scenarios.json` + loader + `MockMeasurementRepository` + Zustand store.
 - [x] T4 · `SyntheticBadge` + `DemoBanner` (non-dismissible) + `Screen` wrapper that enforces them.
@@ -70,8 +70,8 @@ to execute the plan with automatic decisions. This builds the runnable MVP found
 - `npm test` (jest-expo): 12 passed / 12 total, 3 suites.
 - `npx expo export --platform ios`: succeeded ("Exported: dist") — full module graph bundles, app boots without import/route errors.
 - Toolchain: project requires Node >= 20; use nvm Node 22.22.1 (Node 18.17 breaks create-expo-app). Run app cmds with that node on PATH.
-- Git: repo initialized at Matequife root; work committed on branch `feat/articucare-mvp`, commit 3c6503a. 79 app files tracked, node_modules ignored. Push/PR left to the user.
+- Git: repo initialized at Matequife root; work committed on branch `feat/kneosense-mvp`, commit 3c6503a. 79 app files tracked, node_modules ignored. Push/PR left to the user.
 - NOT executed (out of session, per plan): SurgWound AI training, BLE sensor, real Three.js/expo-gl 3D spike, physical-device testing, backend/RGPD real-data handling.
 
 ## How to run
-- `cd articucare && npm start` (with Node 22 on PATH), then press i / a / w for iOS / Android / web.
+- `cd kneosense && npm start` (with Node 22 on PATH), then press i / a / w for iOS / Android / web.

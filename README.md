@@ -20,7 +20,7 @@ umbrales clínicos citados** evalúa los cuatro signos de la **tétrada de Celso
 
 | Carpeta | Qué es | Stack |
 |---|---|---|
-| `articucare/` | App del paciente | React Native + Expo (SQLite local) |
+| `kneosense/` | App del paciente | React Native + Expo (SQLite local) |
 | `backoffice/server/` | API del médico | Node + TypeScript (Express, `node:sqlite`) |
 | `backoffice/web/` | Panel del médico | React + Vite |
 
@@ -49,7 +49,7 @@ Login demo: `medico@kneosense.demo` / `kneosense`
 
 **3) App del paciente (Expo Go)**
 ```bash
-cd articucare && npm install && npx expo start --go
+cd kneosense && npm install && npx expo start --go
 ```
 Escaneá el QR con Expo Go. Para que la app sincronice con la API desde un
 teléfono real, apuntá `EXPO_PUBLIC_BACKOFFICE_URL` a la **IP LAN** de la máquina

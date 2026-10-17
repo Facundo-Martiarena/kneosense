@@ -1,4 +1,4 @@
-# Feature: ArticuCare — local persistence with expo-sqlite
+# Feature: KneoSense — local persistence with expo-sqlite
 
 ## Objective
 Persist user-generated data (photos + symptom entries) across app restarts using
@@ -27,7 +27,7 @@ lost on reload. The synthetic measurements/scenarios stay bundled read-only JSON
 
 ## Decisions (automatic)
 - Modern expo-sqlite async API (`openDatabaseAsync`, `execAsync`, `runAsync`, `getAllAsync`).
-- One DB file `articucare.db`, schema versioned via `PRAGMA user_version`.
+- One DB file `kneosense.db`, schema versioned via `PRAGMA user_version`.
 - Store loads ALL photos/symptoms once; existing per-case selectors filter in memory.
 - Native → SQLite; web / init failure → in-memory (persistence degraded but app works).
 

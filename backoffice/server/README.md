@@ -1,4 +1,4 @@
-# ArticuCare — Backoffice API (doctor)
+# KneoSense — Backoffice API (doctor)
 
 Node + TypeScript (Express) API for the doctor backoffice. Real DB via
 `node:sqlite` (no native deps). Seeds synthetic patients + readings on first run
