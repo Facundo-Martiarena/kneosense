@@ -9,13 +9,13 @@ import { ThemedText } from '@/components/themed-text';
 import { ThemedView } from '@/components/themed-view';
 import {
   ActionButton,
-  Hero,
   MetricTile,
   PrimaryButton,
   SectionTitle,
 } from '@/components/ui';
 import { BACKOFFICE_URL } from '@/config';
 import { MaxContentWidth, Spacing } from '@/constants/theme';
+import { PatchAssessment } from '@/features/assessment/PatchAssessment';
 import { LineChart, type ChartPoint } from '@/features/measurements/LineChart';
 import { PatientPicker } from '@/features/patients/PatientPicker';
 import { buildSyncPayload, postSync, uploadPhoto } from '@/features/sync/syncClient';
@@ -125,19 +125,13 @@ export default function HomeScreen() {
             Seguimiento de la evolución de tu {joint}.
           </ThemedText>
 
-          <Hero
-            small="Resumen de seguimiento"
-            label="Tu evolución, en un lugar"
-            desc="Consultá tus registros y observá los cambios a lo largo del tiempo."
-            pill="Prototipo · Datos sintéticos"
-          />
+          <PatchAssessment scenarioId={demoCase?.scenarioId ?? null} />
 
-          <View style={styles.sync}>
-            <PrimaryButton
-              label={syncing ? 'Sincronizando…' : 'Sincronizar con el médico'}
-              variant="secondary"
-              onPress={syncToDoctor}
-            />
+          <SectionTitle title="¿Qué querés hacer?" />
+          <View style={styles.actions}>
+            <ActionButton icon="pulse" label="Medición" onPress={() => router.push('/measurements')} />
+            <ActionButton icon="camera" label="Fotografía" onPress={() => router.push('/photos')} />
+            <ActionButton icon="plus" label="Síntomas" onPress={() => router.push('/symptoms')} />
           </View>
 
           <SectionTitle
@@ -150,13 +144,13 @@ export default function HomeScreen() {
               label="Síntomas"
               icon="heart"
               value={latestPain != null ? `${latestPain}/10` : '—'}
-              caption="Ejemplo · Último registro"
+              caption="Último registro"
             />
             <MetricTile
               label="Mediciones"
               icon="pulse"
               value={`${readings.length}`}
-              caption="Ejemplo · Registros"
+              caption="Registros del parche"
             />
           </View>
 
@@ -175,11 +169,12 @@ export default function HomeScreen() {
             <LineChart points={points} color={theme.primary} unit="Ω" />
           </Card>
 
-          <SectionTitle title="¿Qué querés hacer?" />
-          <View style={styles.actions}>
-            <ActionButton icon="pulse" label="Medición" onPress={() => router.push('/measurements')} />
-            <ActionButton icon="camera" label="Fotografía" onPress={() => router.push('/photos')} />
-            <ActionButton icon="plus" label="Síntomas" onPress={() => router.push('/symptoms')} />
+          <View style={styles.sync}>
+            <PrimaryButton
+              label={syncing ? 'Sincronizando…' : 'Sincronizar con el médico'}
+              variant="secondary"
+              onPress={syncToDoctor}
+            />
           </View>
 
           <ThemedText style={[styles.note, { color: theme.textSecondary }]}>

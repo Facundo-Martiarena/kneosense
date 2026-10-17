@@ -29,6 +29,7 @@ export default function PhotosScreen() {
   const removePhoto = useAppStore((s) => s.removePhoto);
   const photos = usePhotosForCase(demoCase?.scenarioId ?? null);
   const [busy, setBusy] = useState(false);
+  const [guideOpen, setGuideOpen] = useState(false);
 
   if (!demoCase) {
     return (
@@ -87,49 +88,32 @@ export default function PhotosScreen() {
     older?.assessment && newer?.assessment && areComparable(older.assessment, newer.assessment);
 
   return (
-    <Screen title="Fotos de la rodilla" subtitle="Seguí la evolución visual de la articulación operada.">
-      <PrimaryButton label="Capturar con cámara" onPress={() => addFrom('camera')} />
-      <PrimaryButton label="Elegir de galería" variant="secondary" onPress={() => addFrom('gallery')} />
-
-      <InfoBox>
-        Cómo sacar la foto, para que sirva comparar:{'\n'}• Qué: la articulación operada (rodilla),
-        descubierta y centrada.{'\n'}• Cómo: luz pareja sin sombras, misma distancia (~30 cm) y el
-        mismo ángulo cada vez, fondo neutro.{'\n'}• Para qué: comparar hinchazón y enrojecimiento a
-        lo largo del tiempo. No es un diagnóstico.
-      </InfoBox>
-
-      <PrimaryButton
-        label="Ver vista anatómica"
-        variant="secondary"
-        onPress={() => router.push('/anatomy')}
-      />
-
-      <ThemedText type="smallBold" style={styles.sectionTitle}>
-        Comparación de las 2 fotos más recientes
-      </ThemedText>
-      <ThemedText type="small" themeColor="textSecondary">
-        Se comparan automáticamente las 2 últimas fotos que saques.
-      </ThemedText>
-
+    <Screen title="Fotos de la rodilla" subtitle="Seguí la evolución visual de tu rodilla operada.">
+      {/* Lead with the answer: the comparison state in plain language. */}
       {older && newer ? (
         comparable ? (
-          <View style={styles.compareRow}>
-            {[
-              { p: older, role: 'Anterior' },
-              { p: newer, role: 'Más reciente' },
-            ].map(({ p, role }) => (
-              <Card key={p.id} style={styles.comparePane}>
-                <ThemedText type="smallBold" style={{ color: theme.primary }}>
-                  {role}
-                </ThemedText>
-                <Image source={{ uri: p.uri }} style={styles.thumb} resizeMode="cover" />
-                <ThemedText type="small">{fullDate(p.capturedAt)}</ThemedText>
-                <ThemedText type="small" themeColor="textSecondary">
-                  edema {p.assessment?.edemaVisible} · eritema {p.assessment?.erythemaVisible}
-                </ThemedText>
-              </Card>
-            ))}
-          </View>
+          <>
+            <ThemedText type="smallBold" style={styles.lead}>
+              Comparación de tus 2 fotos más recientes
+            </ThemedText>
+            <View style={styles.compareRow}>
+              {[
+                { p: older, role: 'Anterior' },
+                { p: newer, role: 'Más reciente' },
+              ].map(({ p, role }) => (
+                <Card key={p.id} style={styles.comparePane}>
+                  <ThemedText type="smallBold" style={{ color: theme.primary }}>
+                    {role}
+                  </ThemedText>
+                  <Image source={{ uri: p.uri }} style={styles.thumb} resizeMode="cover" />
+                  <ThemedText type="small">{fullDate(p.capturedAt)}</ThemedText>
+                  <ThemedText type="small" themeColor="textSecondary">
+                    edema {p.assessment?.edemaVisible} · eritema {p.assessment?.erythemaVisible}
+                  </ThemedText>
+                </Card>
+              ))}
+            </View>
+          </>
         ) : (
           <InfoBox>
             Las 2 fotos no son comparables: una requiere nueva toma (calidad insuficiente). Sacá otra
@@ -137,12 +121,47 @@ export default function PhotosScreen() {
           </InfoBox>
         )
       ) : (
-        <InfoBox>
-          {photos.length === 0
-            ? 'Todavía no hay fotos. Sacá 2 para comparar la evolución.'
-            : 'Ya tenés 1 foto. Sacá 1 más para poder comparar.'}
-        </InfoBox>
+        <Card style={styles.prompt}>
+          <ThemedText type="smallBold" style={{ color: theme.text, fontSize: 17 }}>
+            {photos.length === 0 ? 'Sacá tu primera foto' : 'Sacá 1 foto más para comparar'}
+          </ThemedText>
+          <ThemedText type="small" themeColor="textSecondary">
+            {photos.length === 0
+              ? 'Con 2 fotos podemos mostrarte cómo evoluciona tu rodilla a lo largo del tiempo.'
+              : 'Ya tenés 1 foto. Con la segunda activamos la comparación automática.'}
+          </ThemedText>
+        </Card>
       )}
+
+      <PrimaryButton label="Sacar foto" onPress={() => addFrom('camera')} />
+      <PrimaryButton label="Elegir de galería" variant="secondary" onPress={() => addFrom('gallery')} />
+
+      {/* Progressive disclosure: the how-to guide is tucked behind a toggle. */}
+      <Pressable
+        accessibilityRole="button"
+        onPress={() => setGuideOpen((o) => !o)}
+        style={[styles.toggle, { borderColor: theme.border, backgroundColor: theme.backgroundElement }]}>
+        <ThemedText type="smallBold" style={{ color: theme.primary }}>
+          {guideOpen ? 'Ocultar: cómo sacar una buena foto' : '¿Cómo sacar una buena foto?'}
+        </ThemedText>
+        <ThemedText type="smallBold" style={{ color: theme.primary }}>
+          {guideOpen ? '▴' : '▾'}
+        </ThemedText>
+      </Pressable>
+      {guideOpen ? (
+        <InfoBox>
+          Para que sirva comparar:{'\n'}• Qué: la rodilla operada, descubierta y centrada.{'\n'}•
+          Cómo: luz pareja sin sombras, misma distancia (~30 cm) y el mismo ángulo cada vez, fondo
+          neutro.{'\n'}• Para qué: comparar hinchazón y enrojecimiento a lo largo del tiempo. No es
+          un diagnóstico.
+        </InfoBox>
+      ) : null}
+
+      <PrimaryButton
+        label="Ver vista anatómica"
+        variant="secondary"
+        onPress={() => router.push('/anatomy')}
+      />
 
       <ThemedText type="smallBold" style={styles.sectionTitle}>
         Historial de fotos ({photos.length})
@@ -174,6 +193,17 @@ export default function PhotosScreen() {
 }
 
 const styles = StyleSheet.create({
+  lead: { marginBottom: Spacing.one },
+  prompt: { gap: Spacing.half },
+  toggle: {
+    flexDirection: 'row',
+    alignItems: 'center',
+    justifyContent: 'space-between',
+    borderWidth: StyleSheet.hairlineWidth,
+    borderRadius: Radii.md,
+    paddingHorizontal: Spacing.three,
+    paddingVertical: Spacing.three - 2,
+  },
   sectionTitle: { marginTop: Spacing.two },
   compareRow: { flexDirection: 'row', gap: Spacing.two },
   comparePane: { flex: 1, gap: Spacing.half },
