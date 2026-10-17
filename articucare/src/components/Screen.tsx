@@ -17,9 +17,9 @@ type ScreenProps = {
 };
 
 /**
- * Shared scrollable screen container. Enforces the mandatory DEMO banner and
- * synthetic badge on every data screen (plan sections 10.1/10.3) so individual
- * screens cannot forget them.
+ * Shared scrollable screen container for the tab screens. Renders the mockup's
+ * page-heading typography and enforces the mandatory synthetic-data markers
+ * (plan sections 10.1/10.3) so individual screens cannot forget them.
  */
 export function Screen({ title, subtitle, showSafetyMarkers = true, children }: ScreenProps) {
   return (
@@ -27,20 +27,21 @@ export function Screen({ title, subtitle, showSafetyMarkers = true, children }: 
       <SafeAreaView style={styles.safe} edges={['top']}>
         <ScrollView
           contentContainerStyle={styles.content}
+          showsVerticalScrollIndicator={false}
           contentInsetAdjustmentBehavior="automatic">
-          {showSafetyMarkers && (
+          {showSafetyMarkers ? (
             <View style={styles.markers}>
               <SyntheticBadge />
-              <DemoBanner />
             </View>
-          )}
-          <ThemedText type="subtitle">{title}</ThemedText>
+          ) : null}
+          <ThemedText style={styles.heading}>{title}</ThemedText>
           {subtitle ? (
-            <ThemedText type="small" themeColor="textSecondary">
+            <ThemedText type="small" themeColor="textSecondary" style={styles.sub}>
               {subtitle}
             </ThemedText>
           ) : null}
           <View style={styles.body}>{children}</View>
+          {showSafetyMarkers ? <DemoBanner /> : null}
         </ScrollView>
       </SafeAreaView>
     </ThemedView>
@@ -49,13 +50,10 @@ export function Screen({ title, subtitle, showSafetyMarkers = true, children }: 
 
 const styles = StyleSheet.create({
   root: { flex: 1 },
-  safe: { flex: 1, alignItems: 'center' },
-  content: {
-    padding: Spacing.three,
-    gap: Spacing.two,
-    width: '100%',
-    maxWidth: MaxContentWidth,
-  },
-  markers: { gap: Spacing.two, marginBottom: Spacing.one },
+  safe: { flex: 1, width: '100%', maxWidth: MaxContentWidth, alignSelf: 'center' },
+  content: { paddingHorizontal: Spacing.three + 4, paddingTop: Spacing.three, paddingBottom: Spacing.five },
+  markers: { marginBottom: Spacing.two },
+  heading: { fontSize: 26, fontWeight: '800', letterSpacing: -0.8, marginBottom: 6 },
+  sub: { marginBottom: Spacing.two, lineHeight: 20 },
   body: { gap: Spacing.three, marginTop: Spacing.two },
 });

@@ -48,7 +48,8 @@ make 3D the default and does NOT reconstruct anatomy from photos.
 - `npx expo export --platform ios`
 
 ## Findings
-- Toolchain resolves cleanly: expo-gl ~57.0.2 + three ^0.186.1, direct glue (no expo-three). `tsc --noEmit` clean, 16/16 tests, `expo export --platform ios` bundles the 3D path (exit 0).
+- Toolchain resolves cleanly: expo-gl ~57.0.2 + three, direct glue (no expo-three). `tsc --noEmit` clean, 16/16 tests, `expo export --platform ios` bundles the 3D path (exit 0).
+- DEVICE FINDING (physical iPhone via Expo Go dev server): three r163+ throws at runtime `THREE.WebGLRenderer: WebGL 1 is not supported since r163`. three r163+ requires WebGL2 but cannot detect expo-gl's context as WebGL2 (React Native has no global `WebGL2RenderingContext`). Fix: pin `three` to `0.162.0` (last release supporting the expo-gl WebGL1 context) + `@types/three@0.162.0`. With that, the 3D view renders on device. Alternatives for later: polyfill `global.WebGL2RenderingContext`, or adopt expo-three.
 - Direct glue works: `THREE.WebGLRenderer({ canvas: <shim>, context: gl })` + `gl.endFrameEXP()` per frame; PanResponder drives rotation. No need for the unmaintained expo-three.
 - STILL NEEDS HUMAN ON-DEVICE SIGN-OFF (the real point of the spike, plan section 6):
   1. expo-gl `GLView` needs a **development build** (native module) — it does NOT run in Expo Go, and web uses a WebGL path not exercised here.

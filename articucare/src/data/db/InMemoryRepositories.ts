@@ -1,4 +1,13 @@
-import type { IPhotoRepository, ISymptomRepository, PhotoRecord, SymptomEntry } from '@/types';
+import type {
+  AppPatient,
+  IPatientRepository,
+  IPhotoRepository,
+  ISensorReadingRepository,
+  ISymptomRepository,
+  PhotoRecord,
+  SensorReading,
+  SymptomEntry,
+} from '@/types';
 
 /**
  * In-memory adapters. Used as the web fallback (expo-sqlite web needs wasm
@@ -19,6 +28,11 @@ export class InMemoryPhotoRepository implements IPhotoRepository {
     if (i >= 0) this.items[i] = photo;
     else this.items.push(photo);
   }
+
+  async remove(id: string): Promise<void> {
+    const i = this.items.findIndex((p) => p.id === id);
+    if (i >= 0) this.items.splice(i, 1);
+  }
 }
 
 export class InMemorySymptomRepository implements ISymptomRepository {
@@ -34,5 +48,41 @@ export class InMemorySymptomRepository implements ISymptomRepository {
     const i = this.items.findIndex((e) => e.id === entry.id);
     if (i >= 0) this.items[i] = entry;
     else this.items.push(entry);
+  }
+}
+
+export class InMemoryPatientRepository implements IPatientRepository {
+  private readonly items: AppPatient[] = [];
+
+  async listAll(): Promise<AppPatient[]> {
+    return [...this.items].sort(
+      (a, b) => new Date(a.createdAt).getTime() - new Date(b.createdAt).getTime(),
+    );
+  }
+
+  async add(patient: AppPatient): Promise<void> {
+    const i = this.items.findIndex((p) => p.id === patient.id);
+    if (i >= 0) this.items[i] = patient;
+    else this.items.push(patient);
+  }
+}
+
+export class InMemorySensorReadingRepository implements ISensorReadingRepository {
+  private readonly items: SensorReading[] = [];
+
+  async listAll(): Promise<SensorReading[]> {
+    return [...this.items].sort(
+      (a, b) => new Date(a.timestamp).getTime() - new Date(b.timestamp).getTime(),
+    );
+  }
+
+  async add(reading: SensorReading): Promise<void> {
+    const i = this.items.findIndex((r) => r.id === reading.id);
+    if (i >= 0) this.items[i] = reading;
+    else this.items.push(reading);
+  }
+
+  async count(): Promise<number> {
+    return this.items.length;
   }
 }

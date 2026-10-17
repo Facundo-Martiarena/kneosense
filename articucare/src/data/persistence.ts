@@ -1,12 +1,21 @@
 import { Platform } from 'react-native';
 
-import type { IPhotoRepository, ISymptomRepository } from '@/types';
+import type {
+  IPatientRepository,
+  IPhotoRepository,
+  ISensorReadingRepository,
+  ISymptomRepository,
+} from '@/types';
 
 import {
+  InMemoryPatientRepository,
   InMemoryPhotoRepository,
+  InMemorySensorReadingRepository,
   InMemorySymptomRepository,
 } from './db/InMemoryRepositories';
+import { SqlitePatientRepository } from './db/SqlitePatientRepository';
 import { SqlitePhotoRepository } from './db/SqlitePhotoRepository';
+import { SqliteSensorReadingRepository } from './db/SqliteSensorReadingRepository';
 import { SqliteSymptomRepository } from './db/SqliteSymptomRepository';
 
 /**
@@ -23,3 +32,11 @@ export const photoRepository: IPhotoRepository = useSqlite
 export const symptomRepository: ISymptomRepository = useSqlite
   ? new SqliteSymptomRepository()
   : new InMemorySymptomRepository();
+
+export const sensorReadingRepository: ISensorReadingRepository = useSqlite
+  ? new SqliteSensorReadingRepository()
+  : new InMemorySensorReadingRepository();
+
+export const patientRepository: IPatientRepository = useSqlite
+  ? new SqlitePatientRepository()
+  : new InMemoryPatientRepository();

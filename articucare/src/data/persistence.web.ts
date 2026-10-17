@@ -1,7 +1,14 @@
-import type { IPhotoRepository, ISymptomRepository } from '@/types';
+import type {
+  IPatientRepository,
+  IPhotoRepository,
+  ISensorReadingRepository,
+  ISymptomRepository,
+} from '@/types';
 
 import {
+  InMemoryPatientRepository,
   InMemoryPhotoRepository,
+  InMemorySensorReadingRepository,
   InMemorySymptomRepository,
 } from './db/InMemoryRepositories';
 
@@ -13,3 +20,5 @@ import {
  */
 export const photoRepository: IPhotoRepository = new InMemoryPhotoRepository();
 export const symptomRepository: ISymptomRepository = new InMemorySymptomRepository();
+export const sensorReadingRepository: ISensorReadingRepository = new InMemorySensorReadingRepository();
+export const patientRepository: IPatientRepository = new InMemoryPatientRepository();

@@ -1,6 +1,2 @@
-# IDE
-.idea/
-*.iml
-
-# Node (app has its own .gitignore too)
-node_modules/
+.DS_Store
+logo-transparent.png

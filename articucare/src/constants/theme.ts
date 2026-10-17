@@ -1,6 +1,8 @@
 /**
- * Below are the colors that are used in the app. The colors are defined in the light and dark mode.
- * There are many other ways to style your app. For example, [Nativewind](https://www.nativewind.dev/), [Tamagui](https://tamagui.dev/), [unistyles](https://reactnativeunistyles.vercel.app), etc.
+ * KneoSense visual identity — "teal clinical" per the mobile mockup.
+ * Existing keys (text, background, backgroundElement, backgroundSelected,
+ * textSecondary) are preserved so current consumers keep working; brand,
+ * hero and info tokens are added. Every key exists in both light and dark.
  */
 
 import '@/global.css';
@@ -9,32 +11,88 @@ import { Platform } from 'react-native';
 
 export const Colors = {
   light: {
-    text: '#000000',
-    background: '#ffffff',
-    backgroundElement: '#F0F0F3',
-    backgroundSelected: '#E0E1E6',
-    textSecondary: '#60646C',
+    // neutrals / surfaces
+    text: '#14283C',
+    textSecondary: '#728397',
+    background: '#F6F9FB',
+    backgroundElement: '#FFFFFF', // card surface
+    backgroundSelected: '#EAF5F3', // pressed / selected (light teal)
+    border: '#E7EDF2',
+    // brand (teal) + accent (blue)
+    primary: '#087F85',
+    primaryAlt: '#0CA9A3',
+    primaryPressed: '#066A6F',
+    primaryOn: '#FFFFFF',
+    primarySoft: '#EAF5F3',
+    accent: '#3267DE',
+    accentSoft: '#E7EEFD',
+    // hero gradient + info box
+    heroFrom: '#083B51',
+    heroTo: '#076C74',
+    info: '#436D70',
+    infoBg: '#EAF5F3',
+    infoBorder: '#D9ECEB',
+    // feedback
+    danger: '#DC2626',
+    shadow: '#18374B',
   },
   dark: {
-    text: '#ffffff',
-    background: '#000000',
-    backgroundElement: '#212225',
-    backgroundSelected: '#2E3135',
-    textSecondary: '#B0B4BA',
+    text: '#E8EEF2',
+    textSecondary: '#93A4B3',
+    background: '#0E1720',
+    backgroundElement: '#16232E',
+    backgroundSelected: '#1D2F39',
+    border: '#243440',
+    primary: '#2FB6B0',
+    primaryAlt: '#3FD0C7',
+    primaryPressed: '#1E8E88',
+    primaryOn: '#06201F',
+    primarySoft: '#163A37',
+    accent: '#5B8DEF',
+    accentSoft: '#1A2A44',
+    heroFrom: '#06303F',
+    heroTo: '#065258',
+    info: '#9EC6C6',
+    infoBg: '#11302E',
+    infoBorder: '#1C3F3C',
+    danger: '#F87171',
+    shadow: '#000000',
   },
 } as const;
 
 export type ThemeColor = keyof typeof Colors.light & keyof typeof Colors.dark;
 
+export const Radii = {
+  sm: 8,
+  md: 12,
+  lg: 16,
+  xl: 20,
+  xxl: 24,
+  pill: 999,
+} as const;
+
+/** Elevation presets (iOS shadow* + Android elevation). */
+export const Elevation = {
+  none: {},
+  sm: {
+    shadowOffset: { width: 0, height: 3 },
+    shadowOpacity: 0.06,
+    shadowRadius: 12,
+    elevation: 2,
+  },
+  md: {
+    shadowOffset: { width: 0, height: 6 },
+    shadowOpacity: 0.1,
+    shadowRadius: 18,
+    elevation: 5,
+  },
+} as const;
+
 export const Fonts = Platform.select({
   ios: {
-    /** iOS `UIFontDescriptorSystemDesignDefault` */
     sans: 'system-ui',
-    /** iOS `UIFontDescriptorSystemDesignSerif` */
     serif: 'ui-serif',
-    /** iOS `UIFontDescriptorSystemDesignRounded` */
     rounded: 'ui-rounded',
-    /** iOS `UIFontDescriptorSystemDesignMonospaced` */
     mono: 'ui-monospace',
   },
   default: {

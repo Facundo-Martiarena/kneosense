@@ -6,6 +6,7 @@ import { Card, NavCard } from '@/components/Card';
 import { Screen } from '@/components/Screen';
 import { ThemedText } from '@/components/themed-text';
 import { Spacing } from '@/constants/theme';
+import { useTheme } from '@/hooks/use-theme';
 import { measurementRepository } from '@/features/measurements/MockMeasurementRepository';
 import { useCurrentCase } from '@/state/useCurrentCase';
 import type { ImpedanceMeasurement } from '@/types';
@@ -24,6 +25,7 @@ const JOINT_LABELS: Record<string, string> = {
  */
 export default function PanelScreen() {
   const demoCase = useCurrentCase();
+  const theme = useTheme();
   const [latest, setLatest] = useState<ImpedanceMeasurement | null>(null);
 
   useEffect(() => {
@@ -58,17 +60,24 @@ export default function PanelScreen() {
       title={JOINT_LABELS[demoCase.joint] ?? demoCase.joint}
       subtitle={`Paciente ficticio ${demoCase.patientId}`}>
       <Card>
-        <ThemedText type="small" themeColor="textSecondary">
+        <ThemedText type="small" themeColor="textSecondary" style={styles.label}>
           Días desde la intervención ficticia
         </ThemedText>
-        <ThemedText type="subtitle">{days}</ThemedText>
+        <View style={styles.statRow}>
+          <ThemedText style={[styles.statValue, { color: theme.primary }]}>{days}</ThemedText>
+          <ThemedText type="small" themeColor="textSecondary" style={styles.statUnit}>
+            días
+          </ThemedText>
+        </View>
       </Card>
 
       <Card>
-        <ThemedText type="small" themeColor="textSecondary">
+        <ThemedText type="small" themeColor="textSecondary" style={styles.label}>
           Último dato sintético {latest ? `· ${fullDate(latest.timestamp)}` : ''}
         </ThemedText>
-        <ThemedText type="smallBold">{latestValue}</ThemedText>
+        <ThemedText type="subtitle" style={styles.measureValue}>
+          {latestValue}
+        </ThemedText>
         <ThemedText type="small" themeColor="textSecondary">
           Fuente: {latest?.source ?? 'mock'} · cambio observado en la medición sintética
         </ThemedText>
@@ -109,6 +118,11 @@ export default function PanelScreen() {
 }
 
 const styles = StyleSheet.create({
-  sectionTitle: { marginTop: Spacing.two },
+  label: { textTransform: 'uppercase', letterSpacing: 0.6, fontSize: 12 },
+  statRow: { flexDirection: 'row', alignItems: 'baseline', gap: Spacing.two },
+  statValue: { fontSize: 52, lineHeight: 56, fontWeight: '800' },
+  statUnit: { fontSize: 16 },
+  measureValue: { fontSize: 24, lineHeight: 30 },
+  sectionTitle: { marginTop: Spacing.three, marginBottom: Spacing.one },
   nav: { gap: Spacing.two },
 });

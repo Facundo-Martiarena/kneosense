@@ -3,12 +3,22 @@ import { Pressable, StyleSheet, View } from 'react-native';
 
 import { ThemedText } from '@/components/themed-text';
 import { useTheme } from '@/hooks/use-theme';
-import { Spacing } from '@/constants/theme';
+import { Elevation, Radii, Spacing } from '@/constants/theme';
 
 export function Card({ children, style }: { children: ReactNode; style?: object }) {
   const theme = useTheme();
   return (
-    <View style={[styles.card, { backgroundColor: theme.backgroundElement }, style]}>
+    <View
+      style={[
+        styles.card,
+        Elevation.sm,
+        {
+          backgroundColor: theme.backgroundElement,
+          borderColor: theme.border,
+          shadowColor: theme.shadow,
+        },
+        style,
+      ]}>
       {children}
     </View>
   );
@@ -31,14 +41,27 @@ export function NavCard({
       onPress={onPress}
       style={({ pressed }) => [
         styles.card,
-        { backgroundColor: pressed ? theme.backgroundSelected : theme.backgroundElement },
+        styles.navCard,
+        Elevation.sm,
+        {
+          backgroundColor: pressed ? theme.backgroundSelected : theme.backgroundElement,
+          borderColor: pressed ? theme.primary : theme.border,
+          shadowColor: theme.shadow,
+        },
       ]}>
-      <ThemedText type="smallBold">{title}</ThemedText>
-      {subtitle ? (
-        <ThemedText type="small" themeColor="textSecondary">
-          {subtitle}
+      <View style={styles.navText}>
+        <ThemedText type="smallBold">{title}</ThemedText>
+        {subtitle ? (
+          <ThemedText type="small" themeColor="textSecondary">
+            {subtitle}
+          </ThemedText>
+        ) : null}
+      </View>
+      <View style={[styles.chevron, { backgroundColor: theme.primarySoft }]}>
+        <ThemedText type="smallBold" style={{ color: theme.primary }}>
+          →
         </ThemedText>
-      ) : null}
+      </View>
     </Pressable>
   );
 }
@@ -46,7 +69,22 @@ export function NavCard({
 const styles = StyleSheet.create({
   card: {
     padding: Spacing.three,
-    borderRadius: Spacing.three,
+    borderRadius: Radii.lg,
+    borderWidth: StyleSheet.hairlineWidth,
     gap: Spacing.one,
+  },
+  navCard: {
+    flexDirection: 'row',
+    alignItems: 'center',
+    justifyContent: 'space-between',
+    gap: Spacing.three,
+  },
+  navText: { flex: 1, gap: 2 },
+  chevron: {
+    width: 28,
+    height: 28,
+    borderRadius: Radii.pill,
+    alignItems: 'center',
+    justifyContent: 'center',
   },
 });

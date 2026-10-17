@@ -53,4 +53,9 @@ export class SqlitePhotoRepository implements IPhotoRepository {
       photo.note ?? null,
     );
   }
+
+  async remove(id: string): Promise<void> {
+    const db = await getDatabase();
+    await db.runAsync('DELETE FROM photos WHERE id = ?;', id);
+  }
 }

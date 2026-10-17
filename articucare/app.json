@@ -1,13 +1,10 @@
 {
   "expo": {
-    "name": "articucare",
+    "name": "KneoSense",
     "slug": "articucare",
     "version": "1.0.0",
-    "runtimeVersion": {
-      "policy": "appVersion"
-    },
-    "orientation": "portrait",
-    "icon": "./assets/images/icon.png",
+    "orientation": "default",
+    "icon": "./assets/images/kneosense-logo.png",
     "scheme": "articucare",
     "userInterfaceStyle": "automatic",
     "ios": {
@@ -33,12 +30,13 @@
       [
         "expo-splash-screen",
         {
-          "backgroundColor": "#208AEF",
-          "image": "./assets/images/splash-icon.png",
-          "imageWidth": 76
+          "backgroundColor": "#FFFFFF",
+          "image": "./assets/images/kneosense-logo.png",
+          "imageWidth": 200
         }
       ],
-      "expo-sqlite"
+      "expo-sqlite",
+      "expo-asset"
     ],
     "experiments": {
       "typedRoutes": true,

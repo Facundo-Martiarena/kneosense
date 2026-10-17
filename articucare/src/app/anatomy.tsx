@@ -1,12 +1,12 @@
 import { useState } from 'react';
-import { Pressable, StyleSheet, View } from 'react-native';
+import { Pressable, StyleSheet, useWindowDimensions, View } from 'react-native';
 
 import { Card } from '@/components/Card';
 import { Screen } from '@/components/Screen';
 import { ThemedText } from '@/components/themed-text';
 import { useTheme } from '@/hooks/use-theme';
 import { Spacing } from '@/constants/theme';
-import { AnatomyView, type AnatomyAngle } from '@/features/visuals/AnatomyView';
+import { AnatomyView } from '@/features/visuals/AnatomyView';
 import { Interactive3DJoint } from '@/features/visuals/Interactive3DJoint';
 import { useCurrentCase } from '@/state/useCurrentCase';
 
@@ -28,8 +28,10 @@ type ViewMode = '2_5d' | '3d';
 export default function AnatomyScreen() {
   const demoCase = useCurrentCase();
   const theme = useTheme();
-  const [angle, setAngle] = useState<AnatomyAngle>('front');
   const [mode, setMode] = useState<ViewMode>('2_5d'); // 2.5D stays the default
+  const { width } = useWindowDimensions();
+  // Responsive: fill the card width (screen padding 16*2 + card padding 16*2 = 64), capped.
+  const viewSize = Math.min(width - Spacing.three * 4, 360);
 
   if (!demoCase) {
     return (
@@ -62,9 +64,11 @@ export default function AnatomyScreen() {
             accessibilityRole="button"
             style={[
               styles.modeBtn,
-              { backgroundColor: mode === m.key ? '#2563EB' : theme.backgroundElement },
+              { backgroundColor: mode === m.key ? theme.primary : theme.backgroundElement },
             ]}>
-            <ThemedText type="small" style={{ color: mode === m.key ? '#FFFFFF' : theme.text }}>
+            <ThemedText
+              type="small"
+              style={{ color: mode === m.key ? theme.primaryOn : theme.text }}>
               {m.label}
             </ThemedText>
           </Pressable>
@@ -73,34 +77,18 @@ export default function AnatomyScreen() {
 
       <Card>
         {mode === '2_5d' ? (
-          <>
-            <View style={styles.center}>
-              <AnatomyView angle={angle} highlight={highlight} />
-            </View>
-            <View style={styles.angleRow}>
-              {(['front', 'side'] as AnatomyAngle[]).map((a) => (
-                <Pressable
-                  key={a}
-                  onPress={() => setAngle(a)}
-                  accessibilityRole="button"
-                  style={[
-                    styles.angleBtn,
-                    {
-                      backgroundColor:
-                        angle === a ? theme.backgroundSelected : theme.background,
-                      borderColor: theme.backgroundSelected,
-                    },
-                  ]}>
-                  <ThemedText type="small">{a === 'front' ? 'Frente' : 'Lateral'}</ThemedText>
-                </Pressable>
-              ))}
-            </View>
-          </>
+          <View style={styles.center}>
+            <AnatomyView angle="front" highlight={highlight} size={viewSize} />
+          </View>
         ) : (
           <>
-            <Interactive3DJoint highlight={highlight} />
+            <View style={styles.center}>
+              <Interactive3DJoint highlight={highlight} size={viewSize} />
+            </View>
             <ThemedText type="small" themeColor="textSecondary" style={styles.hint}>
-              Arrastrá para rotar. Rota solo si tu build incluye el módulo nativo expo-gl.
+              Arrastrá para rotar. Es el parche de sensores de bioimpedancia (ilustrativo), con su
+              módulo electrónico, LED de estado y electrodos de contacto; se adhiere sobre la
+              articulación.
             </ThemedText>
           </>
         )}
@@ -112,8 +100,8 @@ export default function AnatomyScreen() {
             Modo experimental (spike de compatibilidad)
           </ThemedText>
           <ThemedText type="small" themeColor="textSecondary">
-            Requiere un development build (no Expo Go). El rendimiento en iOS/Android debe validarse
-            en dispositivo real antes de adoptar 3D como dependencia de producción.
+            Corre en Expo Go vía expo-gl; el rendimiento en iOS/Android debe validarse en
+            dispositivo real antes de adoptar 3D como dependencia de producción.
           </ThemedText>
         </Card>
       )}
@@ -125,6 +113,10 @@ export default function AnatomyScreen() {
         <ThemedText type="small" themeColor="textSecondary">
           La zona coloreada representa una variable demo, no un mapa anatómico real del líquido
           tisular. Los cambios de color son ilustrativos, no prueba de edema.
+        </ThemedText>
+        <ThemedText type="small" themeColor="textSecondary">
+          El bloque verde indica la posición ilustrativa del parche de sensores de bioimpedancia
+          sobre la articulación. En el MVP sus lecturas son simuladas.
         </ThemedText>
       </Card>
     </Screen>
@@ -138,13 +130,6 @@ const styles = StyleSheet.create({
     paddingHorizontal: Spacing.three,
     paddingVertical: Spacing.two,
     borderRadius: Spacing.two,
-  },
-  angleRow: { flexDirection: 'row', gap: Spacing.two, justifyContent: 'center', marginTop: Spacing.two },
-  angleBtn: {
-    paddingHorizontal: Spacing.three,
-    paddingVertical: Spacing.one,
-    borderRadius: Spacing.two,
-    borderWidth: 1,
   },
   hint: { marginTop: Spacing.two, textAlign: 'center' },
   experimental: { color: '#B45309' },

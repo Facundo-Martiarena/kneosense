@@ -1,9 +1,9 @@
 /**
- * Core domain contracts for ArticuCare AI.
+ * Core domain contracts for KneoSense AI.
  *
  * SAFETY: every value handled here is SYNTHETIC demo data. Nothing in this app
  * represents a real clinical measurement, diagnosis, or recommendation.
- * See ArticuCare_Plan_Desarrollo_iOS_Android.md (sections 1.2, 3, 5, 10).
+ * See KneoSense_Plan_Desarrollo_iOS_Android.md (sections 1.2, 3, 5, 10).
  */
 
 export type Joint = 'knee' | 'wrist' | 'ankle' | 'elbow';
@@ -70,6 +70,19 @@ export type PhotoRecord = {
   note?: string;
 };
 
+/**
+ * A user-created patient profile (distinct from the bundled demo scenarios).
+ * Created patients start with no synthetic data; their readings/photos/symptoms
+ * are entered in-app and keyed by this id.
+ */
+export type AppPatient = {
+  id: string;
+  name: string;
+  joint: Joint;
+  side: Side;
+  createdAt: string; // ISO 8601
+};
+
 /** A self-reported symptom entry. Plan RF-05, screen "Registro de síntomas". */
 export type SymptomEntry = {
   id: string;
@@ -80,6 +93,63 @@ export type SymptomEntry = {
   swellingPerception: 'none' | 'mild' | 'moderate' | 'severe';
   stiffness0to10: number;
   comment?: string;
+};
+
+/**
+ * A multimodal reading from the bioimpedance sensor patch (XIAO-based):
+ * two skin temperatures (healthy reference + affected joint), bioimpedance,
+ * an IMU-derived activity/mobility index and battery. SYNTHETIC in the MVP.
+ * `null` means the signal was unavailable for that reading (never fabricated).
+ */
+export type SensorReading = {
+  id: string;
+  caseId: string;
+  timestamp: string; // ISO 8601
+  /** Reference skin temperature at a healthy contralateral site, °C. */
+  tempReferenceC: number | null;
+  /** Skin temperature over the affected joint, °C. */
+  tempAffectedC: number | null;
+  /** Bioimpedance magnitude over the joint, Ω. */
+  bioimpedanceOhm: number | null;
+  /** IMU-derived mobilization this period, 0..1 (fraction of the daily target). */
+  activityIndex: number | null;
+  /** Device battery charge, 0..100. */
+  batteryPct: number;
+  quality: MeasurementQuality;
+  isSynthetic: boolean;
+};
+
+/** Severity for one signal or the overall illustrative assessment. */
+export type SignalLevel = 'normal' | 'watch' | 'alert' | 'unavailable';
+
+export type SignalKey = 'temperature' | 'bioimpedance' | 'activity' | 'battery' | 'photo' | 'pain';
+
+/** Visual photo signal used to corroborate the sensor findings. */
+export type PhotoSignal = {
+  edemaVisible: AttributeState;
+  erythemaVisible: AttributeState;
+};
+
+/** Per-signal evaluation with the measured value and the cited threshold. */
+export type SignalFinding = {
+  key: SignalKey;
+  level: SignalLevel;
+  /** Short human summary of the signal's state. */
+  label: string;
+  /** What was measured and against which cited threshold. */
+  detail: string;
+};
+
+/**
+ * Output of the rule-based decision engine. TRANSPARENT and demonstrative:
+ * `isClinicalDecision` is permanently false — this is NEVER a diagnosis.
+ */
+export type DecisionResult = {
+  findings: SignalFinding[];
+  overallLevel: SignalLevel;
+  /** Non-diagnostic guidance shown to the user. */
+  recommendation: string;
+  isClinicalDecision: false;
 };
 
 /** Illustrative visualization config (never derived from a patient photo). */

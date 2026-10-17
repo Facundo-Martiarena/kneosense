@@ -1,5 +1,5 @@
 {
-  "name": "ArticuCare mock fixtures",
+  "name": "KneoSense mock fixtures",
   "version": "0.1.0",
   "educationalDemoOnly": true,
   "note": "Valores completamente inventados; sin significado fisiológico ni umbrales clínicos. No usar con pacientes.",
@@ -59,7 +59,7 @@
           "joint": "knee",
           "side": "left",
           "frequencyHz": 50000,
-          "impedanceMagnitudeOhm": 64.0,
+          "impedanceMagnitudeOhm": 64,
           "phaseDegrees": -6.779999999999999,
           "skinTemperatureC": 32.6,
           "pain0to10": 3,
@@ -119,8 +119,8 @@
         },
         {
           "day": 7,
-          "edemaVisible": "uncertain",
-          "erythemaVisible": "non_existent",
+          "edemaVisible": "existent",
+          "erythemaVisible": "existent",
           "imageUri": "assets/demo/knee-day-07.png"
         }
       ],
@@ -144,7 +144,7 @@
           "joint": "knee",
           "side": "left",
           "frequencyHz": 50000,
-          "impedanceMagnitudeOhm": 64.0,
+          "impedanceMagnitudeOhm": 64,
           "phaseDegrees": -7.02,
           "skinTemperatureC": 32.8,
           "pain0to10": 4,
@@ -228,7 +228,7 @@
           "joint": "knee",
           "side": "left",
           "frequencyHz": 50000,
-          "impedanceMagnitudeOhm": 64.0,
+          "impedanceMagnitudeOhm": 64,
           "phaseDegrees": -6.539999999999999,
           "skinTemperatureC": 32.8,
           "pain0to10": 2,
@@ -246,7 +246,7 @@
         },
         {
           "day": 7,
-          "edemaVisible": "uncertain",
+          "edemaVisible": "non_existent",
           "erythemaVisible": "non_existent",
           "imageUri": "assets/demo/knee-day-07.png"
         }
@@ -271,7 +271,7 @@
           "joint": "knee",
           "side": "left",
           "frequencyHz": 50000,
-          "impedanceMagnitudeOhm": 64.0,
+          "impedanceMagnitudeOhm": 64,
           "phaseDegrees": -7.02,
           "skinTemperatureC": 32.8,
           "pain0to10": 4,
@@ -313,7 +313,7 @@
           "joint": "knee",
           "side": "left",
           "frequencyHz": 50000,
-          "impedanceMagnitudeOhm": 64.0,
+          "impedanceMagnitudeOhm": 64,
           "phaseDegrees": -6.779999999999999,
           "skinTemperatureC": 32.6,
           "pain0to10": 3,
@@ -341,7 +341,7 @@
           "joint": "knee",
           "side": "left",
           "frequencyHz": 50000,
-          "impedanceMagnitudeOhm": 64.0,
+          "impedanceMagnitudeOhm": 64,
           "phaseDegrees": -6.619999999999999,
           "skinTemperatureC": 32.7,
           "pain0to10": 2,

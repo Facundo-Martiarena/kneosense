@@ -7,7 +7,7 @@ import * as SQLite from 'expo-sqlite';
  */
 
 const DB_NAME = 'articucare.db';
-const SCHEMA_VERSION = 1;
+const SCHEMA_VERSION = 3;
 
 let dbPromise: Promise<SQLite.SQLiteDatabase> | null = null;
 
@@ -49,6 +49,36 @@ async function openAndMigrate(): Promise<SQLite.SQLiteDatabase> {
       );
       CREATE INDEX IF NOT EXISTS idx_photos_case ON photos(case_id);
       CREATE INDEX IF NOT EXISTS idx_symptoms_case ON symptoms(case_id);
+    `);
+  }
+
+  if (current < 2) {
+    await db.execAsync(`
+      CREATE TABLE IF NOT EXISTS sensor_readings (
+        id TEXT PRIMARY KEY NOT NULL,
+        case_id TEXT NOT NULL,
+        timestamp TEXT NOT NULL,
+        temp_reference REAL,
+        temp_affected REAL,
+        bioimpedance REAL,
+        activity_index REAL,
+        battery INTEGER NOT NULL,
+        quality TEXT NOT NULL,
+        is_synthetic INTEGER NOT NULL
+      );
+      CREATE INDEX IF NOT EXISTS idx_sensor_case ON sensor_readings(case_id);
+    `);
+  }
+
+  if (current < 3) {
+    await db.execAsync(`
+      CREATE TABLE IF NOT EXISTS app_patients (
+        id TEXT PRIMARY KEY NOT NULL,
+        name TEXT NOT NULL,
+        joint TEXT NOT NULL,
+        side TEXT NOT NULL,
+        created_at TEXT NOT NULL
+      );
     `);
   }
 

@@ -1,40 +1,87 @@
-import { DarkTheme, DefaultTheme, Stack, ThemeProvider } from 'expo-router';
+import { DarkTheme, DefaultTheme, Tabs, ThemeProvider } from 'expo-router';
+import * as ScreenOrientation from 'expo-screen-orientation';
 import * as SplashScreen from 'expo-splash-screen';
 import { useEffect } from 'react';
-import { useColorScheme } from 'react-native';
+import { type ColorValue, useColorScheme } from 'react-native';
 
 import { AnimatedSplashOverlay } from '@/components/animated-icon';
+import { Icon, type IconName } from '@/components/icons';
+import { Colors } from '@/constants/theme';
 import { useAppStore } from '@/state/appStore';
 
 SplashScreen.preventAutoHideAsync();
 
+const TAB_ICON: Record<string, IconName> = {
+  index: 'home',
+  measurements: 'pulse',
+  photos: 'camera',
+  symptoms: 'heart',
+  history: 'clock',
+};
+
 /**
- * Root stack navigation. ArticuCare uses a stack (Welcome -> Panel -> sections)
- * instead of a tab bar because the MVP has 7 screens (plan section 8) and the
- * flow is linear: open app -> see demo -> pick a section.
+ * Bottom-tab navigation (mobile mockup): Inicio, Mediciones, Fotos, Síntomas,
+ * Historial. A default demo scenario is preselected in the store, so the app
+ * opens directly on the Home tab. panel/anatomy stay routable but are not tabs.
  */
 export default function RootLayout() {
   const colorScheme = useColorScheme();
+  const isDark = colorScheme === 'dark';
+  const palette = isDark ? Colors.dark : Colors.light;
   const hydrate = useAppStore((s) => s.hydrate);
 
   useEffect(() => {
     hydrate().catch(() => {
       // Persistence unavailable; the app continues with empty in-memory data.
     });
+    ScreenOrientation.lockAsync(ScreenOrientation.OrientationLock.PORTRAIT_UP).catch(() => {});
   }, [hydrate]);
 
+  const base = isDark ? DarkTheme : DefaultTheme;
+  const navTheme = {
+    ...base,
+    colors: {
+      ...base.colors,
+      primary: palette.primary,
+      background: palette.background,
+      card: palette.backgroundElement,
+      text: palette.text,
+      border: palette.border,
+    },
+  };
+
   return (
-    <ThemeProvider value={colorScheme === 'dark' ? DarkTheme : DefaultTheme}>
+    <ThemeProvider value={navTheme}>
       <AnimatedSplashOverlay />
-      <Stack screenOptions={{ headerBackTitle: 'Atrás' }}>
-        <Stack.Screen name="index" options={{ headerShown: false }} />
-        <Stack.Screen name="panel" options={{ title: 'Panel principal' }} />
-        <Stack.Screen name="measurements" options={{ title: 'Mediciones' }} />
-        <Stack.Screen name="photos" options={{ title: 'Fotos' }} />
-        <Stack.Screen name="anatomy" options={{ title: 'Vista anatómica' }} />
-        <Stack.Screen name="symptoms" options={{ title: 'Registro de síntomas' }} />
-        <Stack.Screen name="history" options={{ title: 'Historial / resumen' }} />
-      </Stack>
+      <Tabs
+        screenOptions={{
+          headerShown: false,
+          tabBarActiveTintColor: palette.primary,
+          tabBarInactiveTintColor: palette.textSecondary,
+          tabBarStyle: {
+            backgroundColor: palette.backgroundElement,
+            borderTopColor: palette.border,
+          },
+          tabBarLabelStyle: { fontSize: 12, fontWeight: '700' },
+          sceneStyle: { backgroundColor: palette.background },
+        }}>
+        <Tabs.Screen name="index" options={tab('Inicio', 'index')} />
+        <Tabs.Screen name="measurements" options={tab('Mediciones', 'measurements')} />
+        <Tabs.Screen name="photos" options={tab('Fotos', 'photos')} />
+        <Tabs.Screen name="symptoms" options={tab('Síntomas', 'symptoms')} />
+        <Tabs.Screen name="history" options={tab('Historial', 'history')} />
+        <Tabs.Screen name="panel" options={{ href: null }} />
+        <Tabs.Screen name="anatomy" options={{ href: null }} />
+      </Tabs>
     </ThemeProvider>
   );
+}
+
+function tab(title: string, route: keyof typeof TAB_ICON) {
+  return {
+    title,
+    tabBarIcon: ({ color, size }: { color: ColorValue; size: number }) => (
+      <Icon name={TAB_ICON[route]} size={size ?? 22} color={color as string} strokeWidth={2} />
+    ),
+  };
 }

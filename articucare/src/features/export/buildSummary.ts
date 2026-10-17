@@ -15,7 +15,7 @@ export function buildSummary(
   const invalid = demoCase.measurements.length - valid.length;
   const lines: string[] = [];
 
-  lines.push('ARTICUCARE AI — RESUMEN DE CASO DEMOSTRATIVO');
+  lines.push('KNEOSENSE AI — RESUMEN DE CASO DEMOSTRATIVO');
   lines.push('*** DATOS 100% SINTÉTICOS · NO ES UN INFORME CLÍNICO ***');
   lines.push('');
   lines.push(`Escenario: ${demoCase.scenarioId}`);
