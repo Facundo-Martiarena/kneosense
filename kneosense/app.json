@@ -2,6 +2,7 @@
   "expo": {
     "name": "KneoSense",
     "slug": "kneosense",
+    "owner": "facumartiarena",
     "version": "1.0.0",
     "orientation": "default",
     "icon": "./assets/images/kneosense-logo.png",
@@ -41,6 +42,12 @@
     "experiments": {
       "typedRoutes": true,
       "reactCompiler": true
+    },
+    "extra": {
+      "router": {},
+      "eas": {
+        "projectId": "90dd5db5-353d-457c-bff6-dc47a00b9528"
+      }
     }
   }
 }

@@ -5,7 +5,10 @@ import { dirname, join } from 'node:path';
 import type { MeasurementQuality, Patient, Photo, SensorReading } from './types.js';
 
 const here = dirname(fileURLToPath(import.meta.url));
-const db = new DatabaseSync(join(here, '..', 'kneosense-backoffice.db'));
+// DB_PATH lets a host point the SQLite file at a persistent volume (e.g. Fly's
+// /data). Falls back to the repo-local file for local development.
+const dbPath = process.env.DB_PATH ?? join(here, '..', 'kneosense-backoffice.db');
+const db = new DatabaseSync(dbPath);
 
 db.exec(`
   CREATE TABLE IF NOT EXISTS patients (

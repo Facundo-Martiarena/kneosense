@@ -1,2 +1,6 @@
 .DS_Store
 logo-transparent.png
+
+# Generated web build output copied into the Fly static-deploy dirs.
+# Regenerate with the build commands in DEPLOY.md before `fly deploy`.
+deploy/*/dist/

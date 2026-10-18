@@ -24,7 +24,10 @@ import type { AttributeState, Patient, SensorReading } from './types.js';
 
 seedIfEmpty();
 
-const uploadsDir = join(dirname(fileURLToPath(import.meta.url)), '..', 'uploads');
+// UPLOADS_DIR lets a host store photos on a persistent volume (e.g. Fly's
+// /data/uploads). Falls back to the repo-local folder for local development.
+const uploadsDir =
+  process.env.UPLOADS_DIR ?? join(dirname(fileURLToPath(import.meta.url)), '..', 'uploads');
 mkdirSync(uploadsDir, { recursive: true });
 
 const EXT: Record<string, string> = { 'image/png': '.png', 'image/jpeg': '.jpg', 'image/webp': '.webp' };

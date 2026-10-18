@@ -1,0 +1,28 @@
+# Fly.io config for the KneoSense backoffice API.
+# `app` and `primary_region` can be changed; `fly launch` will also offer to set
+# them. gru = São Paulo (closest Fly region to Argentina).
+app = "kneosense-backoffice"
+primary_region = "gru"
+
+[build]
+
+[env]
+  PORT = "8080"
+  # DB file and uploads live on the persistent volume mounted at /data.
+  DB_PATH = "/data/kneosense-backoffice.db"
+  UPLOADS_DIR = "/data/uploads"
+
+[http_service]
+  internal_port = 8080
+  force_https = true
+  auto_stop_machines = "stop"
+  auto_start_machines = true
+  # Keep one machine alive so the doctor panel's live SSE stream stays
+  # connected. Set to 0 to scale to zero and save cost (adds cold starts).
+  min_machines_running = 1
+
+# Persistent volume: SQLite DB + uploaded photos survive deploys/restarts.
+# Create it once with: fly volumes create kneosense_data --size 1 --region gru
+[[mounts]]
+  source = "kneosense_data"
+  destination = "/data"
