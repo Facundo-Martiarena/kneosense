@@ -20,6 +20,8 @@ import type {
   SymptomEntry,
 } from '@/types';
 import { uid } from '@/utils/id';
+import { loadAuth, saveAuth } from '@/features/auth/authStorage';
+import type { PatientAuth } from '@/features/sync/syncClient';
 
 /**
  * App-wide session state. User-generated data (photos, symptoms) and the patch's
@@ -54,6 +56,10 @@ type AppState = {
   sensorReadings: SensorReading[];
   patients: AppPatient[];
   hydrated: boolean;
+
+  /** Logged-in patient session (null = not logged in). Persisted via authStorage. */
+  auth: PatientAuth | null;
+  setAuth: (auth: PatientAuth | null) => void;
 
   /** Loads persisted data into memory (seeding sensor readings once). */
   hydrate: () => Promise<void>;
@@ -92,6 +98,12 @@ export const useAppStore = create<AppState>((set, get) => ({
   sensorReadings: [],
   patients: [],
   hydrated: false,
+  auth: loadAuth(),
+
+  setAuth: (auth) => {
+    saveAuth(auth);
+    set({ auth });
+  },
 
   hydrate: async () => {
     const [photos, symptoms] = await Promise.all([photoRepo.listAll(), symptomRepo.listAll()]);

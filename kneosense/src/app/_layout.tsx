@@ -7,6 +7,7 @@ import { type ColorValue, useColorScheme } from 'react-native';
 import { AnimatedSplashOverlay } from '@/components/animated-icon';
 import { Icon, type IconName } from '@/components/icons';
 import { Colors } from '@/constants/theme';
+import { LoginScreen } from '@/features/auth/LoginScreen';
 import { useAppStore } from '@/state/appStore';
 
 SplashScreen.preventAutoHideAsync();
@@ -29,6 +30,7 @@ export default function RootLayout() {
   const isDark = colorScheme === 'dark';
   const palette = isDark ? Colors.dark : Colors.light;
   const hydrate = useAppStore((s) => s.hydrate);
+  const auth = useAppStore((s) => s.auth);
 
   useEffect(() => {
     hydrate().catch(() => {
@@ -49,6 +51,15 @@ export default function RootLayout() {
       border: palette.border,
     },
   };
+
+  if (!auth) {
+    return (
+      <ThemeProvider value={navTheme}>
+        <AnimatedSplashOverlay />
+        <LoginScreen />
+      </ThemeProvider>
+    );
+  }
 
   return (
     <ThemeProvider value={navTheme}>

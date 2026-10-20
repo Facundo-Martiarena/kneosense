@@ -21,6 +21,7 @@ import { PatientPicker } from '@/features/patients/PatientPicker';
 import { buildSyncPayload, postSync, uploadPhoto } from '@/features/sync/syncClient';
 import { useTheme } from '@/hooks/use-theme';
 import { getDemoCase, scenarioLabels } from '@/data/mocks/loadScenarios';
+import { useAppStore } from '@/state/appStore';
 import { usePhotosForCase, useReadingsForCase, useSymptomsForCase } from '@/state/selectors';
 import { useCurrentCase } from '@/state/useCurrentCase';
 
@@ -42,18 +43,20 @@ export default function HomeScreen() {
   const symptoms = useSymptomsForCase(demoCase?.scenarioId ?? null);
   const readings = useReadingsForCase(demoCase?.scenarioId ?? null);
   const photos = usePhotosForCase(demoCase?.scenarioId ?? null);
+  const auth = useAppStore((s) => s.auth);
+  const setAuth = useAppStore((s) => s.setAuth);
   const [syncing, setSyncing] = useState(false);
   const [pickerOpen, setPickerOpen] = useState(false);
 
   async function syncToDoctor() {
-    if (!demoCase || syncing) return;
+    if (!demoCase || !auth || syncing) return;
     setSyncing(true);
     try {
       const ann = getDemoCase(demoCase.scenarioId)?.photoAnnotations ?? [];
       const latestPhoto = ann.length ? ann[ann.length - 1] : null;
       const payload = buildSyncPayload({
-        patientId: demoCase.scenarioId,
-        name: scenarioLabels[demoCase.scenarioId]?.title ?? demoCase.patientId,
+        patientId: auth.patientId,
+        name: auth.name,
         joint: demoCase.joint,
         side: 'left',
         edemaVisible: latestPhoto?.edemaVisible ?? 'uncertain',
@@ -65,7 +68,7 @@ export default function HomeScreen() {
       let uploaded = 0;
       for (const p of photos) {
         try {
-          await uploadPhoto(demoCase.scenarioId, p);
+          await uploadPhoto(auth.patientId, p);
           uploaded += 1;
         } catch {
           // keep going; report the count
@@ -105,13 +108,24 @@ export default function HomeScreen() {
             resizeMode="contain"
             accessibilityLabel="KneoSense"
           />
-          <Pressable
-            accessibilityRole="button"
-            accessibilityLabel="Elegir o crear paciente"
-            onPress={() => setPickerOpen(true)}
-            style={[styles.circle, { borderColor: theme.border, backgroundColor: theme.backgroundElement }]}>
-            <Icon name="user" size={21} color={theme.textSecondary} />
-          </Pressable>
+          <View style={styles.headerRight}>
+            <Pressable
+              accessibilityRole="button"
+              accessibilityLabel="Cerrar sesión"
+              onPress={() => setAuth(null)}
+              style={[styles.circle, styles.logout, { borderColor: theme.border }]}>
+              <ThemedText type="smallBold" style={{ color: theme.textSecondary }}>
+                Salir
+              </ThemedText>
+            </Pressable>
+            <Pressable
+              accessibilityRole="button"
+              accessibilityLabel="Elegir o crear paciente"
+              onPress={() => setPickerOpen(true)}
+              style={[styles.circle, { borderColor: theme.border, backgroundColor: theme.backgroundElement }]}>
+              <Icon name="user" size={21} color={theme.textSecondary} />
+            </Pressable>
+          </View>
         </View>
 
         <ScrollView
@@ -119,7 +133,7 @@ export default function HomeScreen() {
           showsVerticalScrollIndicator={false}>
           <ThemedText style={styles.hello}>Tu espacio de recuperación</ThemedText>
           <ThemedText style={[styles.big, { color: theme.text }]}>
-            Hola, ¿cómo estás hoy?
+            Hola, {auth?.name?.split(' ')[0] ?? ''} 👋
           </ThemedText>
           <ThemedText type="small" themeColor="textSecondary" style={styles.sub}>
             Seguimiento de la evolución de tu {joint}.
@@ -200,6 +214,7 @@ const styles = StyleSheet.create({
     paddingBottom: Spacing.two,
   },
   logo: { width: 72, height: 72, marginLeft: -6 },
+  headerRight: { flexDirection: 'row', alignItems: 'center', gap: Spacing.two },
   circle: {
     width: 40,
     height: 40,
@@ -208,6 +223,7 @@ const styles = StyleSheet.create({
     alignItems: 'center',
     justifyContent: 'center',
   },
+  logout: { width: 'auto', paddingHorizontal: Spacing.three, backgroundColor: 'transparent' },
   content: { paddingHorizontal: Spacing.three + 4, paddingBottom: Spacing.five },
   hello: { fontSize: 13, color: '#7B8E9D', marginTop: 4, marginBottom: 2 },
   big: { fontSize: 30, fontWeight: '800', letterSpacing: -1.1, lineHeight: 34, marginBottom: 8 },

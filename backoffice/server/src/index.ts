@@ -268,7 +268,9 @@ app.get(
  */
 app.get(
   '/api/patients/:id/readings',
-  ah(async (req, res) => {
+  requirePatient,
+  ah(async (req: PatientRequest, res) => {
+    if (req.patientId !== req.params.id) return res.status(403).json({ error: 'forbidden' });
     const patient = await getPatient(req.params.id);
     if (!patient) return res.status(404).json({ error: 'patient_not_found' });
     const readings = await getReadings(patient.id);
@@ -450,33 +452,22 @@ app.post(
   }),
 );
 
-// Pair a device to a patient using the code (used by the patient app).
+// Pair a device to the logged-in patient using the code (patient app).
 app.post(
   '/api/pair',
-  ah(async (req, res) => {
-  const b = req.body ?? {};
-  const code = typeof b.code === 'string' ? b.code.trim().toUpperCase() : '';
-  const patientId = typeof b.patientId === 'string' ? b.patientId : '';
-  if (!code || !patientId) return res.status(400).json({ error: 'missing_code_or_patient' });
+  requirePatient,
+  ah(async (req: PatientRequest, res) => {
+    const b = req.body ?? {};
+    const code = typeof b.code === 'string' ? b.code.trim().toUpperCase() : '';
+    const patientId = req.patientId!;
+    if (!code) return res.status(400).json({ error: 'missing_code' });
 
-  const device = await getDeviceByCode(code);
-  if (!device) return res.status(404).json({ error: 'invalid_code' });
+    const device = await getDeviceByCode(code);
+    if (!device) return res.status(404).json({ error: 'invalid_code' });
 
-  if (!(await getPatient(patientId))) {
-    await upsertPatient({
-      id: patientId,
-      name: typeof b.name === 'string' ? b.name : patientId,
-      joint: typeof b.joint === 'string' ? b.joint : 'knee',
-      side: typeof b.side === 'string' ? b.side : 'left',
-      edemaVisible: 'uncertain',
-      erythemaVisible: 'uncertain',
-      pain0to10: null,
-    });
-  }
-
-  await pairDevice(device.deviceId, patientId);
-  broadcast({ type: 'sync', patientId });
-  res.json({ ok: true, deviceId: device.deviceId, patientId });
+    await pairDevice(device.deviceId, patientId);
+    broadcast({ type: 'sync', patientId });
+    res.json({ ok: true, deviceId: device.deviceId, patientId });
   }),
 );
 

@@ -6,35 +6,34 @@ import { Screen } from '@/components/Screen';
 import { ThemedText } from '@/components/themed-text';
 import { InfoBox, PrimaryButton, RowItem, SectionTitle } from '@/components/ui';
 import { Radii, Spacing } from '@/constants/theme';
-import { scenarioLabels } from '@/data/mocks/loadScenarios';
 import { fetchBackendReadings, pairDevice, type BackendReadings } from '@/features/sync/syncClient';
 import { useTheme } from '@/hooks/use-theme';
-import { useCurrentCase } from '@/state/useCurrentCase';
+import { useAppStore } from '@/state/appStore';
 import { fullDate } from '@/utils/date';
 
 /**
- * Pair a physical patch to this patient using the 6-char code the device shows,
- * then read the patch's real readings from the backend. The patient id is this
- * patient's scenario id (same id the doctor web and the device route to).
+ * Pair a physical patch to the logged-in patient using the 6-char code the device
+ * shows, then read the patch's real readings from the backend (patient token).
  */
 const REFRESH_MS = 20_000;
 
 export default function PairScreen() {
-  const demoCase = useCurrentCase();
   const theme = useTheme();
+  const auth = useAppStore((s) => s.auth);
   const [code, setCode] = useState('');
   const [busy, setBusy] = useState(false);
   const [data, setData] = useState<BackendReadings | null>(null);
 
-  const scenarioId = demoCase?.scenarioId ?? null;
+  const patientId = auth?.patientId ?? null;
+  const token = auth?.token ?? null;
 
   // Auto-refresh: the patch posts on its own (~every 60s); poll the backend so new
   // readings appear here without tapping. Also shows data if already paired before.
   useEffect(() => {
-    if (!scenarioId) return;
+    if (!patientId || !token) return;
     let active = true;
     const load = () =>
-      fetchBackendReadings(scenarioId)
+      fetchBackendReadings(patientId, token)
         .then((d) => {
           if (active) setData(d);
         })
@@ -47,29 +46,27 @@ export default function PairScreen() {
       active = false;
       clearInterval(t);
     };
-  }, [scenarioId]);
+  }, [patientId, token]);
 
-  if (!demoCase) {
+  if (!auth) {
     return (
       <Screen title="Vincular parche">
-        <ThemedText>No hay paciente seleccionado.</ThemedText>
+        <ThemedText>Ingresá a tu cuenta para vincular un parche.</ThemedText>
       </Screen>
     );
   }
 
-  const patientId = demoCase.scenarioId;
-  const name = scenarioLabels[demoCase.scenarioId]?.title ?? demoCase.patientId;
-  const joint = demoCase.joint;
-
   async function refresh() {
+    if (!auth) return;
     try {
-      setData(await fetchBackendReadings(patientId));
+      setData(await fetchBackendReadings(auth.patientId, auth.token));
     } catch {
       // keep whatever we had; the UI shows an empty-state hint
     }
   }
 
   async function doPair() {
+    if (!auth) return;
     const c = code.trim().toUpperCase();
     if (c.length < 4) {
       Alert.alert('Código incompleto', 'Ingresá el código de 6 caracteres que muestra el parche.');
@@ -77,7 +74,7 @@ export default function PairScreen() {
     }
     setBusy(true);
     try {
-      await pairDevice(c, patientId, name, joint);
+      await pairDevice(c, auth.token);
       await refresh();
       Alert.alert('Parche vinculado', 'Listo: ya vas a ver las lecturas de tu parche acá.');
     } catch (e) {

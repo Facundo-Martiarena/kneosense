@@ -100,22 +100,52 @@ export async function uploadPhoto(
   if (!res.ok) throw new Error(`photo ${res.status}`);
 }
 
-export type PairResult = { ok: boolean; deviceId: string; patientId: string };
+export type PatientAuth = { token: string; patientId: string; name: string };
 
-/** Links a physical patch to this patient using the code shown by the device. */
-export async function pairDevice(
-  code: string,
-  patientId: string,
+/** Register a new patient account → returns the auth session. */
+export async function patientRegister(
+  email: string,
+  password: string,
   name: string,
-  joint: string,
   baseUrl = BACKOFFICE_URL,
-): Promise<PairResult> {
-  const res = await fetch(`${baseUrl}/api/pair`, {
+): Promise<PatientAuth> {
+  const res = await fetch(`${baseUrl}/api/patient/register`, {
     method: 'POST',
     headers: { 'Content-Type': 'application/json' },
-    body: JSON.stringify({ code, patientId, name, joint }),
+    body: JSON.stringify({ email, password, name }),
+  });
+  if (res.status === 409) throw new Error('Ese email ya está registrado');
+  if (!res.ok) throw new Error('No se pudo registrar');
+  return res.json();
+}
+
+/** Log in an existing patient → returns the auth session. */
+export async function patientLogin(
+  email: string,
+  password: string,
+  baseUrl = BACKOFFICE_URL,
+): Promise<PatientAuth> {
+  const res = await fetch(`${baseUrl}/api/patient/login`, {
+    method: 'POST',
+    headers: { 'Content-Type': 'application/json' },
+    body: JSON.stringify({ email, password }),
+  });
+  if (res.status === 401) throw new Error('Email o contraseña incorrectos');
+  if (!res.ok) throw new Error('No se pudo ingresar');
+  return res.json();
+}
+
+export type PairResult = { ok: boolean; deviceId: string; patientId: string };
+
+/** Links a physical patch to the logged-in patient using the code it shows. */
+export async function pairDevice(code: string, token: string, baseUrl = BACKOFFICE_URL): Promise<PairResult> {
+  const res = await fetch(`${baseUrl}/api/pair`, {
+    method: 'POST',
+    headers: { 'Content-Type': 'application/json', Authorization: `Bearer ${token}` },
+    body: JSON.stringify({ code }),
   });
   if (res.status === 404) throw new Error('Código inválido');
+  if (res.status === 401) throw new Error('Sesión expirada, volvé a ingresar');
   if (!res.ok) throw new Error(`pair ${res.status}`);
   return res.json();
 }
@@ -126,12 +156,15 @@ export type BackendReadings = {
   evaluation: { overallLevel: string; recommendation: string } | null;
 };
 
-/** Reads this patient's own readings from the backend (no doctor token). */
+/** Reads the logged-in patient's own readings from the backend (patient token). */
 export async function fetchBackendReadings(
   patientId: string,
+  token: string,
   baseUrl = BACKOFFICE_URL,
 ): Promise<BackendReadings> {
-  const res = await fetch(`${baseUrl}/api/patients/${patientId}/readings`);
+  const res = await fetch(`${baseUrl}/api/patients/${patientId}/readings`, {
+    headers: { Authorization: `Bearer ${token}` },
+  });
   if (!res.ok) throw new Error(`readings ${res.status}`);
   return res.json();
 }

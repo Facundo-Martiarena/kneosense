@@ -25,10 +25,14 @@ login fixes identity and secures those endpoints.
       createPatientUser/getPatientUserByEmail. tsc 0.
 - [x] T2 · Backend endpoints: POST /api/patient/register, /login, /logout, GET
       /api/patient/me (additive). Smoke OK (register/me/409/login/401). Deploy.
-- [ ] T3 · Secure /api/pair + GET /api/patients/:id/readings to requirePatient &
-      matching patientId. (Ship together with the app so nothing breaks.)
-- [ ] T4 · App: login/register screen + gate (_layout), persist auth in store,
-      syncClient register/login + token on pair/readings, use authed patientId.
+- [x] T3 · Secured /api/pair (requirePatient, patientId from token, body {code})
+      and GET /api/patients/:id/readings (requirePatient + 403 if token's patientId
+      ≠ :id). tsc 0.
+- [x] T4 · App: LoginScreen (features/auth) + gate in _layout; auth persisted in
+      the store via authStorage (localStorage on web / memory on native);
+      syncClient patientRegister/patientLogin + token sent on pair/readings; pair,
+      measurements and Home-sync use the authed patientId; "Salir" button + name in
+      the Home greeting. app tsc 0, tests 36/36, web export OK.
 
 ## Notes
 - Sessions are in-memory → a Render redeploy logs everyone out (re-login). Users

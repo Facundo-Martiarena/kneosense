@@ -39,18 +39,20 @@ export default function MeasurementsScreen() {
   const demoCase = useCurrentCase();
   const theme = useTheme();
   const addSensorReading = useAppStore((s) => s.addSensorReading);
+  const auth = useAppStore((s) => s.auth);
   const readings = useReadingsForCase(demoCase?.scenarioId ?? null);
   const [expanded, setExpanded] = useState(false);
   const [backend, setBackend] = useState<BackendReadings | null>(null);
 
-  const scenarioId = demoCase?.scenarioId ?? null;
+  const patientId = auth?.patientId ?? null;
+  const token = auth?.token ?? null;
 
-  // Poll the backend for this patient's patch readings; null = no paired patch.
+  // Poll the backend for the logged-in patient's patch readings; null = no patch.
   useEffect(() => {
-    if (!scenarioId) return;
+    if (!patientId || !token) return;
     let active = true;
     const load = () =>
-      fetchBackendReadings(scenarioId)
+      fetchBackendReadings(patientId, token)
         .then((d) => {
           if (active) setBackend(d.readings.length ? d : null);
         })
@@ -63,7 +65,7 @@ export default function MeasurementsScreen() {
       active = false;
       clearInterval(t);
     };
-  }, [scenarioId]);
+  }, [patientId, token]);
 
   if (!demoCase) {
     return (
