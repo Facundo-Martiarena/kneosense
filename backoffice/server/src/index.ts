@@ -176,6 +176,19 @@ app.get('/api/patients/:id', requireAuth, (req, res) => {
   res.json({ patient, readings, latestReading: latest, evaluation, photos });
 });
 
+/**
+ * Patient-facing: a patient reads their OWN readings by id, no doctor token.
+ * The id is the patient's handle (shared with their paired device). Fine for the
+ * demo with synthetic data; not a substitute for real per-patient auth.
+ */
+app.get('/api/patients/:id/readings', (req, res) => {
+  const patient = getPatient(req.params.id);
+  if (!patient) return res.status(404).json({ error: 'patient_not_found' });
+  const readings = getReadings(patient.id);
+  const { latest, evaluation } = evaluatePatient(patient, readings);
+  res.json({ patient, readings, latestReading: latest, evaluation });
+});
+
 /** Upload one patient photo (multipart: field `file` + metadata). */
 app.post('/api/patients/:id/photos', upload.single('file'), (req, res) => {
   if (!getPatient(req.params.id)) return res.status(404).json({ error: 'patient_not_found' });

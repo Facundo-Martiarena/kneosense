@@ -1,3 +1,4 @@
+import { router } from 'expo-router';
 import { useState } from 'react';
 import { Alert, Pressable, StyleSheet, View } from 'react-native';
 
@@ -58,6 +59,11 @@ export default function MeasurementsScreen() {
       <PatchAssessment scenarioId={demoCase.scenarioId} />
 
       <PrimaryButton label="+ Tomar nueva medición" onPress={newMeasurement} />
+      <PrimaryButton
+        label="Vincular parche físico"
+        variant="secondary"
+        onPress={() => router.push('/pair')}
+      />
 
       <SectionTitle title="Evolución" />
       <Card>

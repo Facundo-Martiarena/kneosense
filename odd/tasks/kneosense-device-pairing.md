@@ -22,17 +22,21 @@ provisional patient id with no formal link to a patient record or the patient ap
   are nulled; battery clamped 0–100.
 
 ## Tasks
-- [ ] T1 · Backend: `devices` table + Device type; db fns (registerDeviceIfNew,
+- [x] T1 · Backend: `devices` table + Device type; db fns (registerDeviceIfNew,
       getDevice, getDeviceByCode, pairDevice w/ reading migration, listDevices, touch).
-- [ ] T2 · Backend: `POST /api/devices/:deviceId/readings` (register + sanitize +
+- [x] T2 · Backend: `POST /api/devices/:deviceId/readings` (register + sanitize +
       provisional patient + return pairingCode), `POST /api/pair`, `GET /api/devices`
-      (doctor). Apply sanitize to the legacy `/api/patients/:id/readings` too.
-- [ ] T3 · Update ARDUINO_PROMPT.md: post to /api/devices/:id/readings; print the
+      (doctor). sanitize applied to the legacy `/api/patients/:id/readings` too.
+- [x] T3 · Updated ARDUINO_PROMPT.md: posts to /api/devices/:id/readings; prints the
       returned pairingCode on serial.
-- [ ] T4 · Deploy backend (push → Render auto-deploy) + verify live (register,
-      pairing-code returned, pair, migration, impossible temp nulled).
-- [ ] T5 · Patient app: "Vincular mi parche" (enter code → POST /api/pair) + pull
-      real readings from the backend for the paired patient id. (NEXT work-unit)
+- [x] T4 · Deployed backend (commit c33df66 → Render auto-deploy, live in ~40s).
+      Verified live: pairingCode returned, temp=100 nulled. Local smoke covered
+      register→pair→migrate→404 provisional.
+- [x] T5 · Patient app: `app/pair.tsx` ("Vincular parche": enter 6-char code →
+      pairDevice → POST /api/pair; then fetchBackendReadings → GET
+      /api/patients/:id/readings and show them). Route registered in _layout
+      (href:null); entry button on measurements. New backend GET
+      /api/patients/:id/readings (unauth, patient reads own id). tsc 0, tests 36/36.
 - [ ] T6 · Doctor web: show device/pairing status + list of unpaired devices. (NEXT)
 
 ## Acceptance

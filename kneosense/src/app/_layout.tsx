@@ -72,6 +72,7 @@ export default function RootLayout() {
         <Tabs.Screen name="history" options={tab('Historial', 'history')} />
         <Tabs.Screen name="panel" options={{ href: null }} />
         <Tabs.Screen name="anatomy" options={{ href: null }} />
+        <Tabs.Screen name="pair" options={{ href: null }} />
       </Tabs>
     </ThemeProvider>
   );

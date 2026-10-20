@@ -99,3 +99,39 @@ export async function uploadPhoto(
   const res = await fetch(`${baseUrl}/api/patients/${patientId}/photos`, { method: 'POST', body: form });
   if (!res.ok) throw new Error(`photo ${res.status}`);
 }
+
+export type PairResult = { ok: boolean; deviceId: string; patientId: string };
+
+/** Links a physical patch to this patient using the code shown by the device. */
+export async function pairDevice(
+  code: string,
+  patientId: string,
+  name: string,
+  joint: string,
+  baseUrl = BACKOFFICE_URL,
+): Promise<PairResult> {
+  const res = await fetch(`${baseUrl}/api/pair`, {
+    method: 'POST',
+    headers: { 'Content-Type': 'application/json' },
+    body: JSON.stringify({ code, patientId, name, joint }),
+  });
+  if (res.status === 404) throw new Error('Código inválido');
+  if (!res.ok) throw new Error(`pair ${res.status}`);
+  return res.json();
+}
+
+export type BackendReadings = {
+  patient: { id: string; name: string };
+  readings: SyncReading[];
+  evaluation: { overallLevel: string; recommendation: string } | null;
+};
+
+/** Reads this patient's own readings from the backend (no doctor token). */
+export async function fetchBackendReadings(
+  patientId: string,
+  baseUrl = BACKOFFICE_URL,
+): Promise<BackendReadings> {
+  const res = await fetch(`${baseUrl}/api/patients/${patientId}/readings`);
+  if (!res.ok) throw new Error(`readings ${res.status}`);
+  return res.json();
+}
