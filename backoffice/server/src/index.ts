@@ -72,6 +72,7 @@ function evaluatePatient(patient: Patient, readings: SensorReading[]) {
     previousReading,
     photo: { edemaVisible: patient.edemaVisible, erythemaVisible: patient.erythemaVisible },
     pain: patient.pain0to10,
+    history: readings,
   });
   return { latest, evaluation };
 }

@@ -16,12 +16,17 @@ export const PAIN_WATCH = 4;
 export const PAIN_HIGH = 7;
 export const BIOZ_WATCH_DROP = 0.15;
 export const BIOZ_ALERT_DROP = 0.25;
+// Below this, a temperature reading looks like ambient air, not skin → the patch
+// is likely misplaced or not in contact (skin surface is typically ~30–34 °C).
+export const SKIN_MIN_C = 28;
 
 export type EvaluateOptions = {
   baselineOhm?: number | null;
   previousReading?: SensorReading | null;
   photo?: PhotoSignal | null;
   pain?: number | null;
+  /** Full reading history (ascending) for the patient, for trend/deviation. */
+  history?: SensorReading[];
 };
 
 const SEVERITY: Record<SignalLevel, number> = { unavailable: -1, normal: 0, watch: 1, alert: 2 };
@@ -98,6 +103,61 @@ function evaluatePain(pain?: number | null): SignalFinding {
   return { key: 'pain', level: 'normal', label: 'Dolor bajo', detail: `${pain}/10 (autoinforme).` };
 }
 
+/**
+ * Patch placement / skin-contact check. A temperature well below skin range means
+ * the patch is reading ambient air → it's misplaced or not in contact. We flag it
+ * so the clinical reading isn't trusted (no false alarm from bad data).
+ */
+function evaluatePlacement(r: SensorReading): SignalFinding {
+  const temps = [r.tempReferenceC, r.tempAffectedC].filter((t): t is number => t != null);
+  if (temps.length === 0) {
+    return {
+      key: 'placement',
+      level: 'watch',
+      label: 'Parche sin lectura de temperatura',
+      detail: 'No llegó una temperatura válida. Revisá que el parche esté bien colocado y haga contacto.',
+    };
+  }
+  const min = Math.min(...temps);
+  if (min < SKIN_MIN_C) {
+    return {
+      key: 'placement',
+      level: 'watch',
+      label: 'Parche mal colocado',
+      detail: `Temperatura muy baja (${min.toFixed(1)} °C, por debajo de ${SKIN_MIN_C} °C): el parche no parece estar en contacto con la piel. Reacomodalo y asegurá contacto firme.`,
+    };
+  }
+  return { key: 'placement', level: 'normal', label: 'Colocación OK', detail: 'Temperatura compatible con contacto en piel.' };
+}
+
+/**
+ * Deviation detection over the patient's OWN baseline (unsupervised, no labels):
+ * EWMA + upward CUSUM on the temperature differential Δ. Catches a sustained rise
+ * even below the absolute thresholds. Complements the single-reading rules.
+ */
+function evaluateDeviation(history: SensorReading[]): SignalFinding {
+  const deltas = history.map(tempDelta).filter((d): d is number => d != null);
+  if (deltas.length < 4) {
+    return { key: 'trend', level: 'unavailable', label: 'Tendencia no disponible', detail: 'Pocas mediciones para una línea de base.' };
+  }
+  const k = Math.min(3, deltas.length - 1);
+  const baseline = deltas.slice(0, k).reduce((a, b) => a + b, 0) / k;
+
+  const alpha = 0.4; // EWMA smoothing
+  let ewma = deltas[0];
+  for (let i = 1; i < deltas.length; i++) ewma = alpha * deltas[i] + (1 - alpha) * ewma;
+
+  const slack = 0.3; // CUSUM allowance before accumulating
+  let cusum = 0;
+  for (const d of deltas) cusum = Math.max(0, cusum + (d - baseline - slack));
+
+  const rise = ewma - baseline;
+  const detail = `Δ +${rise.toFixed(1)} °C vs tu base ${baseline.toFixed(1)} °C (EWMA); acumulado CUSUM ${cusum.toFixed(1)}.`;
+  if (rise >= 2.0 || cusum >= 3.0) return { key: 'trend', level: 'alert', label: 'Desvío sostenido al alza', detail };
+  if (rise >= 1.0 || cusum >= 1.5) return { key: 'trend', level: 'watch', label: 'Tendencia en aumento', detail };
+  return { key: 'trend', level: 'normal', label: 'Tendencia estable', detail };
+}
+
 function recommend(level: SignalLevel): string {
   switch (level) {
     case 'alert':
@@ -112,14 +172,25 @@ function recommend(level: SignalLevel): string {
 }
 
 export function evaluateReading(reading: SensorReading, opts: EvaluateOptions = {}): DecisionResult {
+  const placement = evaluatePlacement(reading);
+  const deviation = evaluateDeviation(opts.history ?? [reading]);
   const findings: SignalFinding[] = [
     evaluateTemperature(reading, opts.previousReading),
+    deviation,
     evaluateBioimpedance(reading, opts.baselineOhm),
     evaluateActivity(reading),
     evaluateBattery(reading),
     evaluatePhoto(opts.photo),
     evaluatePain(opts.pain),
+    placement,
   ];
+
+  // If the patch looks misplaced, the temperature can't be trusted → surface the
+  // placement warning and do NOT raise a clinical alarm from unreliable data.
+  if (placement.level === 'watch') {
+    return { findings, overallLevel: 'watch', recommendation: placement.detail, isClinicalDecision: false };
+  }
+
   const ranked = findings.filter((f) => f.level !== 'unavailable');
   const base: SignalLevel = ranked.length
     ? ranked.reduce<SignalLevel>((acc, f) => (SEVERITY[f.level] > SEVERITY[acc] ? f.level : acc), 'normal')

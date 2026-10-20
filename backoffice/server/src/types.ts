@@ -35,7 +35,15 @@ export type SensorReading = {
 };
 
 export type SignalLevel = 'normal' | 'watch' | 'alert' | 'unavailable';
-export type SignalKey = 'temperature' | 'bioimpedance' | 'activity' | 'battery' | 'photo' | 'pain';
+export type SignalKey =
+  | 'temperature'
+  | 'trend'
+  | 'bioimpedance'
+  | 'activity'
+  | 'battery'
+  | 'photo'
+  | 'pain'
+  | 'placement';
 
 export type SignalFinding = {
   key: SignalKey;
