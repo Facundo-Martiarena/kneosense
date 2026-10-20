@@ -1,16 +1,18 @@
-import { DatabaseSync } from 'node:sqlite';
+import { createClient } from '@libsql/client';
 import { fileURLToPath } from 'node:url';
 import { dirname, join } from 'node:path';
 
 import type { Device, MeasurementQuality, Patient, Photo, SensorReading } from './types.js';
 
 const here = dirname(fileURLToPath(import.meta.url));
-// DB_PATH lets a host point the SQLite file at a persistent volume (e.g. Fly's
-// /data). Falls back to the repo-local file for local development.
-const dbPath = process.env.DB_PATH ?? join(here, '..', 'kneosense-backoffice.db');
-const db = new DatabaseSync(dbPath);
+// Persistence: Turso (libSQL) in production via TURSO_DATABASE_URL (+ auth token).
+// Falls back to a local libSQL file for development, so the same async code path
+// is exercised everywhere. intMode 'number' keeps INTEGER columns as JS numbers.
+const url =
+  process.env.TURSO_DATABASE_URL ?? `file:${process.env.DB_PATH ?? join(here, '..', 'kneosense-backoffice.db')}`;
+const db = createClient({ url, authToken: process.env.TURSO_AUTH_TOKEN, intMode: 'number' });
 
-db.exec(`
+await db.executeMultiple(`
   CREATE TABLE IF NOT EXISTS patients (
     id TEXT PRIMARY KEY NOT NULL,
     name TEXT NOT NULL,
@@ -52,19 +54,9 @@ db.exec(`
   );
 `);
 
-type ReadingRow = {
-  id: string;
-  patient_id: string;
-  timestamp: string;
-  temp_reference: number | null;
-  temp_affected: number | null;
-  bioimpedance: number | null;
-  activity_index: number | null;
-  battery: number;
-  quality: string;
-};
+/* eslint-disable @typescript-eslint/no-explicit-any */
 
-function toReading(r: ReadingRow): SensorReading {
+function toReading(r: any): SensorReading {
   return {
     id: r.id,
     patientId: r.patient_id,
@@ -78,8 +70,8 @@ function toReading(r: ReadingRow): SensorReading {
   };
 }
 
-export function getPatients(): Patient[] {
-  return db.prepare('SELECT * FROM patients ORDER BY name ASC;').all().map((p: any) => ({
+function toPatient(p: any): Patient {
+  return {
     id: p.id,
     name: p.name,
     joint: p.joint,
@@ -87,70 +79,81 @@ export function getPatients(): Patient[] {
     edemaVisible: p.edema,
     erythemaVisible: p.erythema,
     pain0to10: p.pain ?? null,
-  }));
+  };
 }
 
-export function getPatient(id: string): Patient | null {
-  const p: any = db.prepare('SELECT * FROM patients WHERE id = ?;').get(id);
-  if (!p) return null;
-  return { id: p.id, name: p.name, joint: p.joint, side: p.side, edemaVisible: p.edema, erythemaVisible: p.erythema, pain0to10: p.pain ?? null };
+export async function getPatients(): Promise<Patient[]> {
+  const rs = await db.execute('SELECT * FROM patients ORDER BY name ASC;');
+  return rs.rows.map(toPatient);
 }
 
-export function getReadings(patientId: string): SensorReading[] {
-  return db
-    .prepare('SELECT * FROM sensor_readings WHERE patient_id = ? ORDER BY timestamp ASC;')
-    .all(patientId)
-    .map((r) => toReading(r as ReadingRow));
+export async function getPatient(id: string): Promise<Patient | null> {
+  const rs = await db.execute({ sql: 'SELECT * FROM patients WHERE id = ?;', args: [id] });
+  return rs.rows[0] ? toPatient(rs.rows[0]) : null;
 }
 
-export function upsertPatient(p: Patient): void {
-  db.prepare(
-    'INSERT OR REPLACE INTO patients (id, name, joint, side, edema, erythema, pain) VALUES (?, ?, ?, ?, ?, ?, ?);',
-  ).run(p.id, p.name, p.joint, p.side, p.edemaVisible, p.erythemaVisible, p.pain0to10);
+export async function getReadings(patientId: string): Promise<SensorReading[]> {
+  const rs = await db.execute({
+    sql: 'SELECT * FROM sensor_readings WHERE patient_id = ? ORDER BY timestamp ASC;',
+    args: [patientId],
+  });
+  return rs.rows.map(toReading);
 }
 
-export function addReading(r: SensorReading): void {
-  db.prepare(
-    `INSERT OR REPLACE INTO sensor_readings
+export async function upsertPatient(p: Patient): Promise<void> {
+  await db.execute({
+    sql: 'INSERT OR REPLACE INTO patients (id, name, joint, side, edema, erythema, pain) VALUES (?, ?, ?, ?, ?, ?, ?);',
+    args: [p.id, p.name, p.joint, p.side, p.edemaVisible, p.erythemaVisible, p.pain0to10],
+  });
+}
+
+export async function addReading(r: SensorReading): Promise<void> {
+  await db.execute({
+    sql: `INSERT OR REPLACE INTO sensor_readings
        (id, patient_id, timestamp, temp_reference, temp_affected, bioimpedance, activity_index, battery, quality)
-     VALUES (?, ?, ?, ?, ?, ?, ?, ?, ?);`,
-  ).run(r.id, r.patientId, r.timestamp, r.tempReferenceC, r.tempAffectedC, r.bioimpedanceOhm, r.activityIndex, r.batteryPct, r.quality);
+       VALUES (?, ?, ?, ?, ?, ?, ?, ?, ?);`,
+    args: [
+      r.id,
+      r.patientId,
+      r.timestamp,
+      r.tempReferenceC,
+      r.tempAffectedC,
+      r.bioimpedanceOhm,
+      r.activityIndex,
+      r.batteryPct,
+      r.quality,
+    ],
+  });
 }
 
-export function addPhoto(p: Photo): void {
-  db.prepare(
-    `INSERT OR REPLACE INTO photos (id, patient_id, captured_at, filename, edema, erythema, quality, note)
-     VALUES (?, ?, ?, ?, ?, ?, ?, ?);`,
-  ).run(p.id, p.patientId, p.capturedAt, p.filename, p.edema, p.erythema, p.quality, p.note);
+export async function addPhoto(p: Photo): Promise<void> {
+  await db.execute({
+    sql: `INSERT OR REPLACE INTO photos (id, patient_id, captured_at, filename, edema, erythema, quality, note)
+       VALUES (?, ?, ?, ?, ?, ?, ?, ?);`,
+    args: [p.id, p.patientId, p.capturedAt, p.filename, p.edema, p.erythema, p.quality, p.note],
+  });
 }
 
-export function getPhotos(patientId: string): Photo[] {
-  return db
-    .prepare('SELECT * FROM photos WHERE patient_id = ? ORDER BY captured_at ASC;')
-    .all(patientId)
-    .map((r: any) => ({
-      id: r.id,
-      patientId: r.patient_id,
-      capturedAt: r.captured_at,
-      filename: r.filename,
-      edema: r.edema,
-      erythema: r.erythema,
-      quality: r.quality,
-      note: r.note,
-    }));
+export async function getPhotos(patientId: string): Promise<Photo[]> {
+  const rs = await db.execute({
+    sql: 'SELECT * FROM photos WHERE patient_id = ? ORDER BY captured_at ASC;',
+    args: [patientId],
+  });
+  return rs.rows.map((r: any) => ({
+    id: r.id,
+    patientId: r.patient_id,
+    capturedAt: r.captured_at,
+    filename: r.filename,
+    edema: r.edema,
+    erythema: r.erythema,
+    quality: r.quality,
+    note: r.note,
+  }));
 }
 
 // ---- Devices (pairing) ----
 
-type DeviceRow = {
-  device_id: string;
-  patient_id: string | null;
-  pairing_code: string;
-  paired_at: string | null;
-  last_seen: string | null;
-};
-
-function toDevice(r: DeviceRow): Device {
+function toDevice(r: any): Device {
   return {
     deviceId: r.device_id,
     patientId: r.patient_id,
@@ -168,46 +171,48 @@ function genPairingCode(): string {
   return s;
 }
 
-export function getDevice(deviceId: string): Device | null {
-  const r = db.prepare('SELECT * FROM devices WHERE device_id = ?;').get(deviceId) as DeviceRow | undefined;
-  return r ? toDevice(r) : null;
+export async function getDevice(deviceId: string): Promise<Device | null> {
+  const rs = await db.execute({ sql: 'SELECT * FROM devices WHERE device_id = ?;', args: [deviceId] });
+  return rs.rows[0] ? toDevice(rs.rows[0]) : null;
 }
 
-export function getDeviceByCode(code: string): Device | null {
-  const r = db.prepare('SELECT * FROM devices WHERE pairing_code = ?;').get(code) as DeviceRow | undefined;
-  return r ? toDevice(r) : null;
+export async function getDeviceByCode(code: string): Promise<Device | null> {
+  const rs = await db.execute({ sql: 'SELECT * FROM devices WHERE pairing_code = ?;', args: [code] });
+  return rs.rows[0] ? toDevice(rs.rows[0]) : null;
 }
 
-export function listDevices(): Device[] {
-  return db
-    .prepare('SELECT * FROM devices ORDER BY last_seen DESC;')
-    .all()
-    .map((r) => toDevice(r as DeviceRow));
+export async function listDevices(): Promise<Device[]> {
+  const rs = await db.execute('SELECT * FROM devices ORDER BY last_seen DESC;');
+  return rs.rows.map(toDevice);
 }
 
 /** Register the device on first contact (with a fresh pairing code) and touch last_seen. */
-export function registerDeviceIfNew(deviceId: string): Device {
+export async function registerDeviceIfNew(deviceId: string): Promise<Device> {
   const now = new Date().toISOString();
-  if (!getDevice(deviceId)) {
-    db.prepare(
-      'INSERT INTO devices (device_id, patient_id, pairing_code, paired_at, last_seen) VALUES (?, NULL, ?, NULL, ?);',
-    ).run(deviceId, genPairingCode(), now);
+  const existing = await getDevice(deviceId);
+  if (!existing) {
+    await db.execute({
+      sql: 'INSERT INTO devices (device_id, patient_id, pairing_code, paired_at, last_seen) VALUES (?, NULL, ?, NULL, ?);',
+      args: [deviceId, genPairingCode(), now],
+    });
   } else {
-    db.prepare('UPDATE devices SET last_seen = ? WHERE device_id = ?;').run(now, deviceId);
+    await db.execute({ sql: 'UPDATE devices SET last_seen = ? WHERE device_id = ?;', args: [now, deviceId] });
   }
-  return getDevice(deviceId)!;
+  return (await getDevice(deviceId))!;
 }
 
 /** Link a device to a patient and migrate its provisional readings to that patient. */
-export function pairDevice(deviceId: string, patientId: string): void {
-  db.prepare('UPDATE devices SET patient_id = ?, paired_at = ? WHERE device_id = ?;').run(
-    patientId,
-    new Date().toISOString(),
-    deviceId,
-  );
+export async function pairDevice(deviceId: string, patientId: string): Promise<void> {
+  await db.execute({
+    sql: 'UPDATE devices SET patient_id = ?, paired_at = ? WHERE device_id = ?;',
+    args: [patientId, new Date().toISOString(), deviceId],
+  });
   if (deviceId !== patientId) {
-    db.prepare('UPDATE sensor_readings SET patient_id = ? WHERE patient_id = ?;').run(patientId, deviceId);
-    db.prepare('DELETE FROM patients WHERE id = ?;').run(deviceId); // drop the provisional patient row
+    await db.execute({
+      sql: 'UPDATE sensor_readings SET patient_id = ? WHERE patient_id = ?;',
+      args: [patientId, deviceId],
+    });
+    await db.execute({ sql: 'DELETE FROM patients WHERE id = ?;', args: [deviceId] }); // drop provisional patient
   }
 }
 
@@ -244,22 +249,22 @@ const PROFILES: Profile[] = [
 const lerp = (a: number, b: number, t: number) => a + (b - a) * t;
 const round = (v: number, d = 1) => Math.round(v * 10 ** d) / 10 ** d;
 
-export function seedIfEmpty(): void {
-  const n = (db.prepare('SELECT COUNT(*) AS n FROM patients;').get() as any).n as number;
+export async function seedIfEmpty(): Promise<void> {
+  const rs = await db.execute('SELECT COUNT(*) AS n FROM patients;');
+  const n = Number((rs.rows[0] as any).n);
   if (n > 0) return;
 
   const N = 6;
   const dayMs = 86_400_000;
   const now = Date.now();
-  const insertPatient = db.prepare('INSERT INTO patients (id, name, joint, side, edema, erythema, pain) VALUES (?, ?, ?, ?, ?, ?, ?);');
 
   for (const p of PROFILES) {
-    insertPatient.run(p.patient.id, p.patient.name, p.patient.joint, p.patient.side, p.patient.edemaVisible, p.patient.erythemaVisible, p.patient.pain0to10);
+    await upsertPatient(p.patient);
     for (let i = 0; i < N; i++) {
       const t = N > 1 ? i / (N - 1) : 1;
       const invalid = p.invalidLast && i === N - 1;
       const delta = lerp(p.deltaStart, p.deltaEnd, t);
-      addReading({
+      await addReading({
         id: `${p.patient.id}-r${i}`,
         patientId: p.patient.id,
         timestamp: new Date(now - (N - 1 - i) * dayMs).toISOString(),

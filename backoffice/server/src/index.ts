@@ -26,7 +26,7 @@ import {
 } from './db.js';
 import type { AttributeState, MeasurementQuality, Patient, SensorReading } from './types.js';
 
-seedIfEmpty();
+await seedIfEmpty();
 
 // UPLOADS_DIR lets a host store photos on a persistent volume (e.g. Fly's
 // /data/uploads). Falls back to the repo-local folder for local development.
@@ -64,9 +64,19 @@ function evaluatePatient(patient: Patient, readings: SensorReading[]) {
   return { latest, evaluation };
 }
 
-app.get('/api/health', (_req, res) => {
-  res.json({ ok: true, service: 'kneosense-backoffice', patients: getPatients().length });
-});
+// Express 4 doesn't forward async rejections; wrap async handlers so a failed DB
+// call returns 500 instead of hanging the request.
+type AsyncHandler = (req: express.Request, res: express.Response) => Promise<unknown>;
+const ah =
+  (fn: AsyncHandler) => (req: express.Request, res: express.Response) =>
+    fn(req, res).catch((e) => res.status(500).json({ error: String(e) }));
+
+app.get(
+  '/api/health',
+  ah(async (_req, res) => {
+    res.json({ ok: true, service: 'kneosense-backoffice', patients: (await getPatients()).length });
+  }),
+);
 
 // ---- Live updates (SSE): the doctor web gets pushed events on sync/photo. ----
 const sseClients = new Set<Response>();
@@ -144,74 +154,94 @@ app.post('/api/logout', requireAuth, (req, res) => {
 });
 
 /** Patient list with the latest overall level (triage view). Doctor-only. */
-app.get('/api/patients', requireAuth, (_req, res) => {
-  const list = getPatients().map((p) => {
-    const { latest, evaluation } = evaluatePatient(p, getReadings(p.id));
-    return {
-      id: p.id,
-      name: p.name,
-      joint: p.joint,
-      side: p.side,
-      overallLevel: evaluation?.overallLevel ?? 'unavailable',
-      lastReadingAt: latest?.timestamp ?? null,
-    };
-  });
-  res.json(list);
-});
+app.get(
+  '/api/patients',
+  requireAuth,
+  ah(async (_req, res) => {
+    const patients = await getPatients();
+    const list = await Promise.all(
+      patients.map(async (p) => {
+        const { latest, evaluation } = evaluatePatient(p, await getReadings(p.id));
+        return {
+          id: p.id,
+          name: p.name,
+          joint: p.joint,
+          side: p.side,
+          overallLevel: evaluation?.overallLevel ?? 'unavailable',
+          lastReadingAt: latest?.timestamp ?? null,
+        };
+      }),
+    );
+    res.json(list);
+  }),
+);
 
 /** Full patient detail: readings, latest evaluation (Celso), signals. Doctor-only. */
-app.get('/api/patients/:id', requireAuth, (req, res) => {
-  const patient = getPatient(req.params.id);
-  if (!patient) return res.status(404).json({ error: 'patient_not_found' });
-  const readings = getReadings(patient.id);
-  const { latest, evaluation } = evaluatePatient(patient, readings);
-  const photos = getPhotos(patient.id).map((p) => ({
-    id: p.id,
-    capturedAt: p.capturedAt,
-    url: `/uploads/${p.filename}`,
-    edema: p.edema,
-    erythema: p.erythema,
-    quality: p.quality,
-  }));
-  res.json({ patient, readings, latestReading: latest, evaluation, photos });
-});
+app.get(
+  '/api/patients/:id',
+  requireAuth,
+  ah(async (req, res) => {
+    const patient = await getPatient(req.params.id);
+    if (!patient) return res.status(404).json({ error: 'patient_not_found' });
+    const readings = await getReadings(patient.id);
+    const { latest, evaluation } = evaluatePatient(patient, readings);
+    const photos = (await getPhotos(patient.id)).map((p) => ({
+      id: p.id,
+      capturedAt: p.capturedAt,
+      url: `/uploads/${p.filename}`,
+      edema: p.edema,
+      erythema: p.erythema,
+      quality: p.quality,
+    }));
+    res.json({ patient, readings, latestReading: latest, evaluation, photos });
+  }),
+);
 
 /**
  * Patient-facing: a patient reads their OWN readings by id, no doctor token.
  * The id is the patient's handle (shared with their paired device). Fine for the
  * demo with synthetic data; not a substitute for real per-patient auth.
  */
-app.get('/api/patients/:id/readings', (req, res) => {
-  const patient = getPatient(req.params.id);
-  if (!patient) return res.status(404).json({ error: 'patient_not_found' });
-  const readings = getReadings(patient.id);
-  const { latest, evaluation } = evaluatePatient(patient, readings);
-  res.json({ patient, readings, latestReading: latest, evaluation });
-});
+app.get(
+  '/api/patients/:id/readings',
+  ah(async (req, res) => {
+    const patient = await getPatient(req.params.id);
+    if (!patient) return res.status(404).json({ error: 'patient_not_found' });
+    const readings = await getReadings(patient.id);
+    const { latest, evaluation } = evaluatePatient(patient, readings);
+    res.json({ patient, readings, latestReading: latest, evaluation });
+  }),
+);
 
 /** Upload one patient photo (multipart: field `file` + metadata). */
-app.post('/api/patients/:id/photos', upload.single('file'), (req, res) => {
-  if (!getPatient(req.params.id)) return res.status(404).json({ error: 'patient_not_found' });
-  const file = req.file;
-  if (!file) return res.status(400).json({ error: 'missing_file' });
-  const b = req.body ?? {};
-  const id = typeof b.photoId === 'string' && b.photoId ? b.photoId : `ph-${Date.now()}`;
-  addPhoto({
-    id,
-    patientId: req.params.id,
-    capturedAt: typeof b.capturedAt === 'string' ? b.capturedAt : new Date().toISOString(),
-    filename: file.filename,
-    edema: typeof b.edema === 'string' ? b.edema : null,
-    erythema: typeof b.erythema === 'string' ? b.erythema : null,
-    quality: typeof b.quality === 'string' ? b.quality : null,
-    note: typeof b.note === 'string' ? b.note : null,
-  });
-  broadcast({ type: 'photo', patientId: req.params.id });
-  res.json({ ok: true, photo: { id, url: `/uploads/${file.filename}` } });
-});
+app.post(
+  '/api/patients/:id/photos',
+  upload.single('file'),
+  ah(async (req, res) => {
+    if (!(await getPatient(req.params.id))) return res.status(404).json({ error: 'patient_not_found' });
+    const file = req.file;
+    if (!file) return res.status(400).json({ error: 'missing_file' });
+    const b = req.body ?? {};
+    const id = typeof b.photoId === 'string' && b.photoId ? b.photoId : `ph-${Date.now()}`;
+    await addPhoto({
+      id,
+      patientId: req.params.id,
+      capturedAt: typeof b.capturedAt === 'string' ? b.capturedAt : new Date().toISOString(),
+      filename: file.filename,
+      edema: typeof b.edema === 'string' ? b.edema : null,
+      erythema: typeof b.erythema === 'string' ? b.erythema : null,
+      quality: typeof b.quality === 'string' ? b.quality : null,
+      note: typeof b.note === 'string' ? b.note : null,
+    });
+    broadcast({ type: 'photo', patientId: req.params.id });
+    res.json({ ok: true, photo: { id, url: `/uploads/${file.filename}` } });
+  }),
+);
 
 /** Sync from a patient's phone: upsert the patient + their readings. */
-app.post('/api/sync', (req, res) => {
+app.post(
+  '/api/sync',
+  ah(async (req, res) => {
   const body = req.body ?? {};
   const p = body.patient;
   if (!p || typeof p.id !== 'string') {
@@ -228,13 +258,13 @@ app.post('/api/sync', (req, res) => {
     erythemaVisible: attr(p.erythemaVisible),
     pain0to10: typeof p.pain0to10 === 'number' ? p.pain0to10 : null,
   };
-  upsertPatient(patient);
+  await upsertPatient(patient);
 
   const readings: SensorReading[] = Array.isArray(body.readings) ? body.readings : [];
   let n = 0;
   for (const r of readings) {
     if (!r || typeof r.id !== 'string' || typeof r.timestamp !== 'string') continue;
-    addReading({
+    await addReading({
       id: r.id,
       patientId: patient.id,
       timestamp: r.timestamp,
@@ -249,18 +279,21 @@ app.post('/api/sync', (req, res) => {
   }
   broadcast({ type: 'sync', patientId: patient.id });
   res.json({ ok: true, patientId: patient.id, readings: n });
-});
+  }),
+);
 
 // Slim ingest for embedded devices (e.g. an ESP32 patch): POST one reading, or
 // an array, or { readings: [...] } to a patient id — no patient object needed.
 // Auto-creates a minimal patient on first contact; id/timestamp are generated
 // server-side when omitted, so the device can send only sensor values.
-app.post('/api/patients/:id/readings', (req, res) => {
+app.post(
+  '/api/patients/:id/readings',
+  ah(async (req, res) => {
   const patientId = req.params.id;
   if (!patientId) return res.status(400).json({ error: 'missing_patient_id' });
 
-  if (!getPatient(patientId)) {
-    upsertPatient({
+  if (!(await getPatient(patientId))) {
+    await upsertPatient({
       id: patientId,
       name: patientId,
       joint: 'knee',
@@ -282,7 +315,7 @@ app.post('/api/patients/:id/readings', (req, res) => {
   for (const raw of items) {
     if (!raw || typeof raw !== 'object') continue;
     const r = raw as Record<string, unknown>;
-    addReading({
+    await addReading({
       id: typeof r.id === 'string' ? r.id : `${patientId}-${Date.now()}-${n}`,
       patientId,
       timestamp: typeof r.timestamp === 'string' ? r.timestamp : new Date().toISOString(),
@@ -294,19 +327,22 @@ app.post('/api/patients/:id/readings', (req, res) => {
   if (n === 0) return res.status(400).json({ error: 'no_readings' });
   broadcast({ type: 'sync', patientId });
   res.json({ ok: true, patientId, readings: n });
-});
+  }),
+);
 
 // Device ingest with pairing. The device posts only sensor values; first contact
 // auto-registers it and the response returns a pairingCode (print it on serial).
 // Unpaired readings land on a provisional patient (id = deviceId) until paired.
-app.post('/api/devices/:deviceId/readings', (req, res) => {
+app.post(
+  '/api/devices/:deviceId/readings',
+  ah(async (req, res) => {
   const deviceId = req.params.deviceId;
   if (!deviceId) return res.status(400).json({ error: 'missing_device_id' });
 
-  const device = registerDeviceIfNew(deviceId);
+  const device = await registerDeviceIfNew(deviceId);
   const targetPatientId = device.patientId ?? deviceId;
-  if (!getPatient(targetPatientId)) {
-    upsertPatient({
+  if (!(await getPatient(targetPatientId))) {
+    await upsertPatient({
       id: targetPatientId,
       name: targetPatientId,
       joint: 'knee',
@@ -328,7 +364,7 @@ app.post('/api/devices/:deviceId/readings', (req, res) => {
   for (const raw of items) {
     if (!raw || typeof raw !== 'object') continue;
     const r = raw as Record<string, unknown>;
-    addReading({
+    await addReading({
       id: typeof r.id === 'string' ? r.id : `${deviceId}-${Date.now()}-${n}`,
       patientId: targetPatientId,
       timestamp: typeof r.timestamp === 'string' ? r.timestamp : new Date().toISOString(),
@@ -347,20 +383,23 @@ app.post('/api/devices/:deviceId/readings', (req, res) => {
     pairingCode: device.patientId ? undefined : device.pairingCode,
     readings: n,
   });
-});
+  }),
+);
 
 // Pair a device to a patient using the code (used by the patient app).
-app.post('/api/pair', (req, res) => {
+app.post(
+  '/api/pair',
+  ah(async (req, res) => {
   const b = req.body ?? {};
   const code = typeof b.code === 'string' ? b.code.trim().toUpperCase() : '';
   const patientId = typeof b.patientId === 'string' ? b.patientId : '';
   if (!code || !patientId) return res.status(400).json({ error: 'missing_code_or_patient' });
 
-  const device = getDeviceByCode(code);
+  const device = await getDeviceByCode(code);
   if (!device) return res.status(404).json({ error: 'invalid_code' });
 
-  if (!getPatient(patientId)) {
-    upsertPatient({
+  if (!(await getPatient(patientId))) {
+    await upsertPatient({
       id: patientId,
       name: typeof b.name === 'string' ? b.name : patientId,
       joint: typeof b.joint === 'string' ? b.joint : 'knee',
@@ -371,15 +410,20 @@ app.post('/api/pair', (req, res) => {
     });
   }
 
-  pairDevice(device.deviceId, patientId);
+  await pairDevice(device.deviceId, patientId);
   broadcast({ type: 'sync', patientId });
   res.json({ ok: true, deviceId: device.deviceId, patientId });
-});
+  }),
+);
 
 /** Device list with pairing status. Doctor-only. */
-app.get('/api/devices', requireAuth, (_req, res) => {
-  res.json(listDevices());
-});
+app.get(
+  '/api/devices',
+  requireAuth,
+  ah(async (_req, res) => {
+    res.json(await listDevices());
+  }),
+);
 
 const PORT = Number(process.env.PORT ?? 3001);
 app.listen(PORT, () => {

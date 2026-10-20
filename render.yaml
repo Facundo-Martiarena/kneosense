@@ -1,12 +1,12 @@
 # Render Blueprint — free tier, no credit card required.
 # Deploys the KneoSense backoffice API as a native Node web service.
 #
-# Free-tier tradeoffs (by design, chosen for the demo):
-#   - No persistent disk: the SQLite file resets on every redeploy/restart.
-#   - Sleeps after ~15 min idle; the next request cold-starts (~1 min).
-#
-# Render injects PORT; the server already reads process.env.PORT.
-# Node version comes from backoffice/server/.node-version (node:sqlite needs 22+).
+# Persistence: set TURSO_DATABASE_URL + TURSO_AUTH_TOKEN (below, sync:false → set
+# them in the Render dashboard, NOT in git) to persist data in Turso (libSQL).
+# Without them the server falls back to an ephemeral local SQLite file that
+# resets on every redeploy/restart. The service also sleeps after ~15 min idle
+# (next request cold-starts ~1 min). Render injects PORT; the server reads it.
+# Node version comes from backoffice/server/.node-version.
 services:
   - type: web
     name: kneosense-backoffice
@@ -16,6 +16,11 @@ services:
     buildCommand: npm install
     startCommand: npm start
     healthCheckPath: /api/health
+    envVars:
+      - key: TURSO_DATABASE_URL
+        sync: false
+      - key: TURSO_AUTH_TOKEN
+        sync: false
 
   # Doctor web (Vite). Served at root on its own onrender.com subdomain.
   - type: web
