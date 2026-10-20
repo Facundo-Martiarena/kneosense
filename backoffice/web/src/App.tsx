@@ -181,7 +181,7 @@ export function App() {
             {!selectedId ? (
               <>
                 <PatientList patients={patients} onSelect={setSelectedId} />
-                <DevicesPanel devices={devices} patients={patients} />
+                <DevicesPanel devices={devices} patients={patients} onSelect={setSelectedId} />
               </>
             ) : (
               <PatientDetailView detail={detail} onBack={() => setSelectedId(null)} />
@@ -271,9 +271,11 @@ function PatientList({
 function DevicesPanel({
   devices,
   patients,
+  onSelect,
 }: {
   devices: Device[] | null;
   patients: PatientListItem[] | null;
+  onSelect: (id: string) => void;
 }) {
   if (!devices) return null;
   const nameOf = (id: string | null) => patients?.find((p) => p.id === id)?.name ?? id ?? '—';
@@ -286,12 +288,16 @@ function DevicesPanel({
         {devices.length === 0
           ? 'Todavía no hay parches conectados.'
           : unpaired > 0
-            ? `${unpaired} sin vincular — el paciente ingresa el código en su app para asociarlo.`
-            : 'Todos los parches están vinculados a un paciente.'}
+            ? `${unpaired} sin vincular — el paciente ingresa el código en su app para asociarlo. Tocá un parche para ver sus lecturas.`
+            : 'Todos los parches están vinculados. Tocá un parche para ver sus lecturas.'}
       </p>
       <div className="list">
         {devices.map((d) => (
-          <div key={d.deviceId} className="row">
+          <button
+            key={d.deviceId}
+            className="row"
+            onClick={() => onSelect(d.patientId ?? d.deviceId)}
+            title={d.patientId ? 'Ver paciente vinculado' : 'Ver lecturas del parche sin vincular'}>
             <div>
               <div className="row-title">{d.deviceId}</div>
               <div className="row-sub">
@@ -303,7 +309,7 @@ function DevicesPanel({
             <span className={`badge badge-${d.patientId ? 'normal' : 'watch'}`}>
               {d.patientId ? 'Vinculado' : 'Sin vincular'}
             </span>
-          </div>
+          </button>
         ))}
       </div>
     </section>
