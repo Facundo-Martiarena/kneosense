@@ -2,12 +2,14 @@ import { useEffect, useRef, useState, type FormEvent } from 'react';
 
 import {
   API_BASE,
+  fetchDevices,
   fetchPatient,
   fetchPatients,
   getAuthToken,
   login,
   logout,
   UnauthorizedError,
+  type Device,
   type PatientDetail,
   type PatientListItem,
   type Reading,
@@ -69,6 +71,7 @@ function delta(r: Reading): number | null {
 export function App() {
   const [authed, setAuthed] = useState<boolean>(!!getAuthToken());
   const [patients, setPatients] = useState<PatientListItem[] | null>(null);
+  const [devices, setDevices] = useState<Device[] | null>(null);
   const [error, setError] = useState<string | null>(null);
   const [selectedId, setSelectedId] = useState<string | null>(null);
   const [detail, setDetail] = useState<PatientDetail | null>(null);
@@ -98,6 +101,7 @@ export function App() {
     if (!authed) return;
     setError(null);
     fetchPatients().then(setPatients).catch(onError);
+    fetchDevices().then(setDevices).catch(onError);
   }, [authed]);
 
   useEffect(() => {
@@ -114,6 +118,7 @@ export function App() {
     es.onerror = () => setLive(false);
     es.onmessage = () => {
       fetchPatients().then(setPatients).catch(onError);
+      fetchDevices().then(setDevices).catch(onError);
       const open = selectedIdRef.current;
       if (open) fetchPatient(open).then(setDetail).catch(onError);
     };
@@ -126,6 +131,7 @@ export function App() {
   function doLogout() {
     logout();
     setPatients(null);
+    setDevices(null);
     setSelectedId(null);
     setDetail(null);
     setAuthed(false);
@@ -173,7 +179,10 @@ export function App() {
               </div>
             ) : null}
             {!selectedId ? (
-              <PatientList patients={patients} onSelect={setSelectedId} />
+              <>
+                <PatientList patients={patients} onSelect={setSelectedId} />
+                <DevicesPanel devices={devices} patients={patients} />
+              </>
             ) : (
               <PatientDetailView detail={detail} onBack={() => setSelectedId(null)} />
             )}
@@ -256,6 +265,48 @@ function PatientList({
         ))}
       </div>
     </>
+  );
+}
+
+function DevicesPanel({
+  devices,
+  patients,
+}: {
+  devices: Device[] | null;
+  patients: PatientListItem[] | null;
+}) {
+  if (!devices) return null;
+  const nameOf = (id: string | null) => patients?.find((p) => p.id === id)?.name ?? id ?? '—';
+  const unpaired = devices.filter((d) => !d.patientId).length;
+
+  return (
+    <section className="devices">
+      <h2>Dispositivos ({devices.length})</h2>
+      <p className="muted">
+        {devices.length === 0
+          ? 'Todavía no hay parches conectados.'
+          : unpaired > 0
+            ? `${unpaired} sin vincular — el paciente ingresa el código en su app para asociarlo.`
+            : 'Todos los parches están vinculados a un paciente.'}
+      </p>
+      <div className="list">
+        {devices.map((d) => (
+          <div key={d.deviceId} className="row">
+            <div>
+              <div className="row-title">{d.deviceId}</div>
+              <div className="row-sub">
+                {d.patientId
+                  ? `Vinculado a ${nameOf(d.patientId)} · últ. ${fmtDateTime(d.lastSeen)}`
+                  : `Código ${d.pairingCode} · últ. ${fmtDateTime(d.lastSeen)}`}
+              </div>
+            </div>
+            <span className={`badge badge-${d.patientId ? 'normal' : 'watch'}`}>
+              {d.patientId ? 'Vinculado' : 'Sin vincular'}
+            </span>
+          </div>
+        ))}
+      </div>
+    </section>
   );
 }
 

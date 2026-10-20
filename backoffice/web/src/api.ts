@@ -109,3 +109,15 @@ export function fetchPatients(): Promise<PatientListItem[]> {
 export function fetchPatient(id: string): Promise<PatientDetail> {
   return authGet<PatientDetail>(`/api/patients/${id}`);
 }
+
+export type Device = {
+  deviceId: string;
+  patientId: string | null;
+  pairingCode: string;
+  pairedAt: string | null;
+  lastSeen: string | null;
+};
+
+export function fetchDevices(): Promise<Device[]> {
+  return authGet<Device[]>('/api/devices');
+}

@@ -37,7 +37,10 @@ provisional patient id with no formal link to a patient record or the patient ap
       /api/patients/:id/readings and show them). Route registered in _layout
       (href:null); entry button on measurements. New backend GET
       /api/patients/:id/readings (unauth, patient reads own id). tsc 0, tests 36/36.
-- [ ] T6 · Doctor web: show device/pairing status + list of unpaired devices. (NEXT)
+- [x] T6 · Doctor web: `DevicesPanel` under the patient list — each device shows
+      deviceId, Vinculado a <paciente> / Código <code> + last seen, and a
+      Vinculado/Sin vincular badge; refreshes on SSE. api.ts +fetchDevices/Device.
+      Build (tsc+vite) OK.
 
 ## Acceptance
 - Server tsc clean; local smoke of register→pair→migrate→sanitize.
