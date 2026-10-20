@@ -1,0 +1,18 @@
+# Render Blueprint — free tier, no credit card required.
+# Deploys the KneoSense backoffice API as a native Node web service.
+#
+# Free-tier tradeoffs (by design, chosen for the demo):
+#   - No persistent disk: the SQLite file resets on every redeploy/restart.
+#   - Sleeps after ~15 min idle; the next request cold-starts (~1 min).
+#
+# Render injects PORT; the server already reads process.env.PORT.
+# Node version comes from backoffice/server/.node-version (node:sqlite needs 22+).
+services:
+  - type: web
+    name: kneosense-backoffice
+    runtime: node
+    plan: free
+    rootDir: backoffice/server
+    buildCommand: npm install
+    startCommand: npm start
+    healthCheckPath: /api/health

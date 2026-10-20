@@ -20,7 +20,7 @@ import {
   seedIfEmpty,
   upsertPatient,
 } from './db.js';
-import type { AttributeState, Patient, SensorReading } from './types.js';
+import type { AttributeState, MeasurementQuality, Patient, SensorReading } from './types.js';
 
 seedIfEmpty();
 
@@ -71,6 +71,11 @@ function broadcast(event: { type: 'sync' | 'photo'; patientId: string }) {
   const data = `data: ${JSON.stringify(event)}\n\n`;
   for (const c of sseClients) c.write(data);
 }
+
+// Keep a known quality value; real device readings use 'measured'.
+const QUALITIES: MeasurementQuality[] = ['simulated', 'invalid_contact', 'measured'];
+const quality = (v: unknown): MeasurementQuality =>
+  QUALITIES.includes(v as MeasurementQuality) ? (v as MeasurementQuality) : 'simulated';
 
 app.get('/api/events', (req, res) => {
   if (!isValidToken(String(req.query.token ?? ''))) return res.status(401).end();
@@ -190,12 +195,62 @@ app.post('/api/sync', (req, res) => {
       bioimpedanceOhm: r.bioimpedanceOhm ?? null,
       activityIndex: r.activityIndex ?? null,
       batteryPct: typeof r.batteryPct === 'number' ? r.batteryPct : 0,
-      quality: r.quality === 'invalid_contact' ? 'invalid_contact' : 'simulated',
+      quality: quality(r.quality),
     });
     n += 1;
   }
   broadcast({ type: 'sync', patientId: patient.id });
   res.json({ ok: true, patientId: patient.id, readings: n });
+});
+
+// Slim ingest for embedded devices (e.g. an ESP32 patch): POST one reading, or
+// an array, or { readings: [...] } to a patient id — no patient object needed.
+// Auto-creates a minimal patient on first contact; id/timestamp are generated
+// server-side when omitted, so the device can send only sensor values.
+app.post('/api/patients/:id/readings', (req, res) => {
+  const patientId = req.params.id;
+  if (!patientId) return res.status(400).json({ error: 'missing_patient_id' });
+
+  if (!getPatient(patientId)) {
+    upsertPatient({
+      id: patientId,
+      name: patientId,
+      joint: 'knee',
+      side: 'left',
+      edemaVisible: 'uncertain',
+      erythemaVisible: 'uncertain',
+      pain0to10: null,
+    });
+  }
+
+  const body = req.body ?? {};
+  const items: unknown[] = Array.isArray(body)
+    ? body
+    : Array.isArray(body.readings)
+      ? body.readings
+      : [body];
+
+  let n = 0;
+  for (const raw of items) {
+    if (!raw || typeof raw !== 'object') continue;
+    const r = raw as Record<string, unknown>;
+    addReading({
+      id: typeof r.id === 'string' ? r.id : `${patientId}-${Date.now()}-${n}`,
+      patientId,
+      timestamp: typeof r.timestamp === 'string' ? r.timestamp : new Date().toISOString(),
+      tempReferenceC: typeof r.tempReferenceC === 'number' ? r.tempReferenceC : null,
+      tempAffectedC: typeof r.tempAffectedC === 'number' ? r.tempAffectedC : null,
+      bioimpedanceOhm: typeof r.bioimpedanceOhm === 'number' ? r.bioimpedanceOhm : null,
+      activityIndex: typeof r.activityIndex === 'number' ? r.activityIndex : null,
+      batteryPct: typeof r.batteryPct === 'number' ? r.batteryPct : 0,
+      quality: quality(r.quality),
+    });
+    n += 1;
+  }
+
+  if (n === 0) return res.status(400).json({ error: 'no_readings' });
+  broadcast({ type: 'sync', patientId });
+  res.json({ ok: true, patientId, readings: n });
 });
 
 const PORT = Number(process.env.PORT ?? 3001);

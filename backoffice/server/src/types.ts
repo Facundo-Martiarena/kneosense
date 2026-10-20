@@ -1,7 +1,7 @@
 /** Server-local domain types (mirrors the app; kept standalone, no RN deps). */
 
 export type AttributeState = 'existent' | 'non_existent' | 'uncertain';
-export type MeasurementQuality = 'simulated' | 'invalid_contact';
+export type MeasurementQuality = 'simulated' | 'invalid_contact' | 'measured';
 
 export type Patient = {
   id: string;
