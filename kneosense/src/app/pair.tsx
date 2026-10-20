@@ -1,4 +1,4 @@
-import { useState } from 'react';
+import { useEffect, useState } from 'react';
 import { Alert, StyleSheet, TextInput } from 'react-native';
 
 import { Card } from '@/components/Card';
@@ -17,13 +17,37 @@ import { fullDate } from '@/utils/date';
  * then read the patch's real readings from the backend. The patient id is this
  * patient's scenario id (same id the doctor web and the device route to).
  */
+const REFRESH_MS = 20_000;
+
 export default function PairScreen() {
   const demoCase = useCurrentCase();
   const theme = useTheme();
   const [code, setCode] = useState('');
   const [busy, setBusy] = useState(false);
-  const [paired, setPaired] = useState(false);
   const [data, setData] = useState<BackendReadings | null>(null);
+
+  const scenarioId = demoCase?.scenarioId ?? null;
+
+  // Auto-refresh: the patch posts on its own (~every 60s); poll the backend so new
+  // readings appear here without tapping. Also shows data if already paired before.
+  useEffect(() => {
+    if (!scenarioId) return;
+    let active = true;
+    const load = () =>
+      fetchBackendReadings(scenarioId)
+        .then((d) => {
+          if (active) setData(d);
+        })
+        .catch(() => {
+          /* unpaired/no data yet → keep empty state */
+        });
+    load();
+    const t = setInterval(load, REFRESH_MS);
+    return () => {
+      active = false;
+      clearInterval(t);
+    };
+  }, [scenarioId]);
 
   if (!demoCase) {
     return (
@@ -54,7 +78,6 @@ export default function PairScreen() {
     setBusy(true);
     try {
       await pairDevice(c, patientId, name, joint);
-      setPaired(true);
       await refresh();
       Alert.alert('Parche vinculado', 'Listo: ya vas a ver las lecturas de tu parche acá.');
     } catch (e) {
@@ -65,6 +88,7 @@ export default function PairScreen() {
   }
 
   const recent = [...(data?.readings ?? [])].reverse().slice(0, 8);
+  const connected = recent.length > 0;
 
   return (
     <Screen title="Vincular parche" subtitle="Conectá tu parche físico a tu seguimiento.">
@@ -92,33 +116,34 @@ export default function PairScreen() {
       />
       <PrimaryButton label={busy ? 'Vinculando…' : 'Vincular parche'} onPress={doPair} />
 
-      {paired ? (
+      <SectionTitle title="Lecturas de tu parche" actionLabel="Actualizar" onAction={refresh} />
+      {connected ? (
         <>
-          <SectionTitle title="Lecturas de tu parche" actionLabel="Actualizar" onAction={refresh} />
-          {recent.length === 0 ? (
-            <InfoBox>
-              Todavía no llegaron lecturas. Esperá a que el parche envíe o tocá “Actualizar”.
-            </InfoBox>
-          ) : (
-            <Card>
-              {recent.map((r, i) => (
-                <RowItem
-                  key={r.id}
-                  title={
-                    r.tempAffectedC != null
-                      ? `${r.tempAffectedC} °C zona · ${r.tempReferenceC ?? '—'} °C ref`
-                      : 'Lectura sin temperatura'
-                  }
-                  subtitle={`${fullDate(r.timestamp)} · parche`}
-                  last={i === recent.length - 1}
-                />
-              ))}
-            </Card>
-          )}
+          <Card>
+            {recent.map((r, i) => (
+              <RowItem
+                key={r.id}
+                title={
+                  r.tempAffectedC != null
+                    ? `${r.tempAffectedC} °C zona · ${r.tempReferenceC ?? '—'} °C ref`
+                    : 'Lectura sin temperatura'
+                }
+                subtitle={`${fullDate(r.timestamp)} · parche`}
+                last={i === recent.length - 1}
+              />
+            ))}
+          </Card>
+          <ThemedText type="small" themeColor="textSecondary" style={styles.note}>
+            Se actualiza solo cada {REFRESH_MS / 1000} s. El parche envía según su configuración
+            (≈1 min).
+          </ThemedText>
           {data?.evaluation ? <InfoBox>{data.evaluation.recommendation}</InfoBox> : null}
         </>
       ) : (
-        <InfoBox>Una vez vinculado, vas a ver acá las lecturas reales que envía tu parche.</InfoBox>
+        <InfoBox>
+          Todavía no llegaron lecturas. Ingresá el código para vincular, o esperá a que el parche
+          envíe (se actualiza solo cada {REFRESH_MS / 1000} s).
+        </InfoBox>
       )}
     </Screen>
   );
@@ -135,4 +160,5 @@ const styles = StyleSheet.create({
     textAlign: 'center',
     fontWeight: '700',
   },
+  note: { marginTop: Spacing.one },
 });
