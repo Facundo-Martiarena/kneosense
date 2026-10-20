@@ -1,5 +1,5 @@
 import { router } from 'expo-router';
-import { useState } from 'react';
+import { useEffect, useState } from 'react';
 import { Alert, Pressable, StyleSheet, View } from 'react-native';
 
 import { Card } from '@/components/Card';
@@ -11,16 +11,29 @@ import { generateNextReading } from '@/data/mocks/sensorReadings';
 import { PatchAssessment } from '@/features/assessment/PatchAssessment';
 import { FullscreenChart } from '@/features/measurements/FullscreenChart';
 import { LineChart, type ChartPoint } from '@/features/measurements/LineChart';
+import { fetchBackendReadings, type BackendReadings } from '@/features/sync/syncClient';
 import { useTheme } from '@/hooks/use-theme';
 import { useAppStore } from '@/state/appStore';
 import { useReadingsForCase } from '@/state/selectors';
 import { useCurrentCase } from '@/state/useCurrentCase';
 import { fullDate, shortDate } from '@/utils/date';
 
+// How often the app re-pulls the paired patch's readings from the backend. The
+// patch itself samples on its own firmware interval (≈1 min); this is just the
+// UI refresh cadence.
+const REFRESH_MS = 20_000;
+
+const LEVEL_UI: Record<string, { icon: string; headline: string; color: string }> = {
+  alert: { icon: '⚠️', headline: 'Consultá a tu equipo', color: '#DC2626' },
+  watch: { icon: '👀', headline: 'Conviene vigilar', color: '#D97706' },
+  normal: { icon: '✅', headline: 'Todo en orden', color: '#16A34A' },
+  unavailable: { icon: '•', headline: 'Sin datos aún', color: '#94A2AF' },
+};
+
 /**
- * Measurements screen (mobile mockup): action hero, illustrative trend chart
- * (expandable to landscape), recent synthetic readings as a grouped list, and a
- * clinical-use note. Readings are synthetic in the MVP (plan section 3.2).
+ * Measurements screen. If the patient has a paired physical patch, the chart and
+ * history show the REAL readings from the backend (temperature), refreshed every
+ * REFRESH_MS. Otherwise it falls back to the local synthetic demo readings.
  */
 export default function MeasurementsScreen() {
   const demoCase = useCurrentCase();
@@ -28,24 +41,61 @@ export default function MeasurementsScreen() {
   const addSensorReading = useAppStore((s) => s.addSensorReading);
   const readings = useReadingsForCase(demoCase?.scenarioId ?? null);
   const [expanded, setExpanded] = useState(false);
+  const [backend, setBackend] = useState<BackendReadings | null>(null);
+
+  const scenarioId = demoCase?.scenarioId ?? null;
+
+  // Poll the backend for this patient's patch readings; null = no paired patch.
+  useEffect(() => {
+    if (!scenarioId) return;
+    let active = true;
+    const load = () =>
+      fetchBackendReadings(scenarioId)
+        .then((d) => {
+          if (active) setBackend(d.readings.length ? d : null);
+        })
+        .catch(() => {
+          if (active) setBackend(null);
+        });
+    load();
+    const t = setInterval(load, REFRESH_MS);
+    return () => {
+      active = false;
+      clearInterval(t);
+    };
+  }, [scenarioId]);
 
   if (!demoCase) {
     return (
-      <Screen title="Bioimpedancia">
+      <Screen title="Mediciones">
         <ThemedText>No hay escenario seleccionado.</ThemedText>
       </Screen>
     );
   }
 
-  // Chart + list reflect the patch readings in the DB, so new measurements and
-  // created patients update live (demo scenarios are seeded with readings).
-  const points: ChartPoint[] = readings.map((r) => ({
-    label: shortDate(r.timestamp),
-    value: r.bioimpedanceOhm,
-    invalid: r.quality === 'invalid_contact',
-    at: r.timestamp,
-  }));
-  const recent = [...readings].reverse().slice(0, 5);
+  const deviceReadings = backend?.readings ?? [];
+  const connected = deviceReadings.length > 0;
+
+  // Device source → plot the affected-zone temperature (the patch's real signal).
+  // Local source → plot bioimpedance (the synthetic demo signal).
+  const points: ChartPoint[] = connected
+    ? deviceReadings.map((r) => ({
+        label: shortDate(r.timestamp),
+        value: r.tempAffectedC,
+        invalid: r.tempAffectedC == null,
+        at: r.timestamp,
+      }))
+    : readings.map((r) => ({
+        label: shortDate(r.timestamp),
+        value: r.bioimpedanceOhm,
+        invalid: r.quality === 'invalid_contact',
+        at: r.timestamp,
+      }));
+
+  const unit = connected ? '°C' : 'Ω';
+  const chartTitle = connected ? 'Temperatura zona afectada (°C)' : 'Bioimpedancia (Ω)';
+  const recentDevice = [...deviceReadings].reverse().slice(0, 5);
+  const recentLocal = [...readings].reverse().slice(0, 5);
 
   async function newMeasurement() {
     if (!demoCase) return;
@@ -54,13 +104,32 @@ export default function MeasurementsScreen() {
     Alert.alert('Medición agregada', 'Se registró una nueva lectura sintética del parche en la base local.');
   }
 
-  return (
-    <Screen title="Mediciones" subtitle="Tu última lectura del parche y qué significa.">
-      <PatchAssessment scenarioId={demoCase.scenarioId} />
+  const verdict = connected && backend?.evaluation ? LEVEL_UI[backend.evaluation.overallLevel] : null;
 
-      <PrimaryButton label="+ Tomar nueva medición" onPress={newMeasurement} />
+  return (
+    <Screen
+      title="Mediciones"
+      subtitle={connected ? 'En vivo desde tu parche físico.' : 'Tu última lectura del parche y qué significa.'}>
+      {connected && verdict && backend?.evaluation ? (
+        <Card style={[styles.verdict, { borderLeftColor: verdict.color }]}>
+          <View style={styles.verdictHead}>
+            <ThemedText style={styles.verdictIcon}>{verdict.icon}</ThemedText>
+            <ThemedText style={[styles.verdictHeadline, { color: theme.text }]}>{verdict.headline}</ThemedText>
+            <ThemedText type="small" style={[styles.livePill, { color: theme.primary, backgroundColor: theme.primarySoft }]}>
+              📡 parche
+            </ThemedText>
+          </View>
+          <ThemedText style={[styles.verdictReco, { color: theme.text }]}>{backend.evaluation.recommendation}</ThemedText>
+        </Card>
+      ) : (
+        <PatchAssessment scenarioId={demoCase.scenarioId} />
+      )}
+
+      {!connected ? (
+        <PrimaryButton label="+ Tomar nueva medición" onPress={newMeasurement} />
+      ) : null}
       <PrimaryButton
-        label="Vincular parche físico"
+        label={connected ? 'Gestionar parche' : 'Vincular parche físico'}
         variant="secondary"
         onPress={() => router.push('/pair')}
       />
@@ -68,7 +137,7 @@ export default function MeasurementsScreen() {
       <SectionTitle title="Evolución" />
       <Card>
         <View style={styles.chartHeader}>
-          <ThemedText type="smallBold">Bioimpedancia (Ω)</ThemedText>
+          <ThemedText type="smallBold">{chartTitle}</ThemedText>
           {points.length > 0 ? (
             <Pressable
               accessibilityRole="button"
@@ -81,24 +150,45 @@ export default function MeasurementsScreen() {
             </Pressable>
           ) : null}
         </View>
-        <LineChart points={points} color={theme.primary} unit="Ω" />
+        <LineChart points={points} color={theme.primary} unit={unit} />
+        {connected ? (
+          <ThemedText type="small" themeColor="textSecondary" style={styles.liveNote}>
+            En vivo desde tu parche · la app actualiza cada {REFRESH_MS / 1000} s.
+          </ThemedText>
+        ) : null}
       </Card>
 
       <SectionTitle title="Historial" />
       <Card>
-        {recent.length === 0 ? (
+        {connected ? (
+          recentDevice.map((r, i) => {
+            const invalid = r.tempAffectedC == null;
+            return (
+              <RowItem
+                key={r.id}
+                title={
+                  invalid
+                    ? 'Medición no disponible'
+                    : `${r.tempAffectedC} °C zona · ${r.tempReferenceC ?? '—'} °C ref`
+                }
+                subtitle={`${fullDate(r.timestamp)} · parche`}
+                last={i === recentDevice.length - 1}
+              />
+            );
+          })
+        ) : recentLocal.length === 0 ? (
           <ThemedText type="small" themeColor="textSecondary">
             Sin mediciones todavía. Tocá “+ Tomar nueva medición” para registrar la primera.
           </ThemedText>
         ) : (
-          recent.map((r, i) => {
+          recentLocal.map((r, i) => {
             const invalid = r.quality === 'invalid_contact' || r.bioimpedanceOhm == null;
             return (
               <RowItem
                 key={r.id}
                 title={invalid ? 'Medición no disponible' : `${r.bioimpedanceOhm?.toFixed(1)} Ω`}
                 subtitle={`${fullDate(r.timestamp)} · dato del parche`}
-                last={i === recent.length - 1}
+                last={i === recentLocal.length - 1}
               />
             );
           })
@@ -106,14 +196,16 @@ export default function MeasurementsScreen() {
       </Card>
 
       <InfoBox>
-        La bioimpedancia no debe interpretarse de forma aislada como diagnóstico clínico.
+        {connected
+          ? 'La temperatura del parche no debe interpretarse de forma aislada como diagnóstico clínico.'
+          : 'La bioimpedancia no debe interpretarse de forma aislada como diagnóstico clínico.'}
       </InfoBox>
 
       <FullscreenChart
         visible={expanded}
         onClose={() => setExpanded(false)}
         points={points}
-        title="Bioimpedancia sintética (demo)"
+        title={connected ? 'Temperatura del parche (°C)' : 'Bioimpedancia sintética (demo)'}
       />
     </Screen>
   );
@@ -132,4 +224,11 @@ const styles = StyleSheet.create({
     paddingVertical: Spacing.one,
     borderRadius: Radii.pill,
   },
+  liveNote: { marginTop: Spacing.two },
+  verdict: { borderLeftWidth: 5 },
+  verdictHead: { flexDirection: 'row', alignItems: 'center', gap: Spacing.two },
+  verdictIcon: { fontSize: 26 },
+  verdictHeadline: { fontSize: 20, fontWeight: '800', letterSpacing: -0.3, flex: 1 },
+  livePill: { paddingHorizontal: Spacing.two, paddingVertical: 2, borderRadius: Radii.pill, overflow: 'hidden' },
+  verdictReco: { marginTop: Spacing.two, fontSize: 15, lineHeight: 22 },
 });
