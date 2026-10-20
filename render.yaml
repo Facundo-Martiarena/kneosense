@@ -16,3 +16,35 @@ services:
     buildCommand: npm install
     startCommand: npm start
     healthCheckPath: /api/health
+
+  # Doctor web (Vite). Served at root on its own onrender.com subdomain.
+  - type: web
+    name: kneosense-doctor
+    runtime: static
+    rootDir: backoffice/web
+    buildCommand: npm install && npm run build
+    staticPublishPath: ./dist
+    envVars:
+      - key: VITE_API_BASE
+        value: https://kneosense-backoffice.onrender.com
+    routes:
+      - type: rewrite
+        source: /*
+        destination: /index.html
+
+  # Patient web (Expo static export).
+  - type: web
+    name: kneosense-web
+    runtime: static
+    rootDir: kneosense
+    buildCommand: npm install && npx expo export -p web
+    staticPublishPath: ./dist
+    envVars:
+      - key: NODE_VERSION
+        value: 22.22.1
+      - key: EXPO_PUBLIC_BACKOFFICE_URL
+        value: https://kneosense-backoffice.onrender.com
+    routes:
+      - type: rewrite
+        source: /*
+        destination: /index.html

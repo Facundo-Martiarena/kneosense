@@ -21,7 +21,7 @@
       "distribution": "internal",
       "channel": "preview",
       "env": {
-        "EXPO_PUBLIC_BACKOFFICE_URL": "https://kneosense-backoffice.fly.dev"
+        "EXPO_PUBLIC_BACKOFFICE_URL": "https://kneosense-backoffice.onrender.com"
       },
       "android": {
         "buildType": "apk"
