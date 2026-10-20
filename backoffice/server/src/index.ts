@@ -97,6 +97,21 @@ function sanitizeReading(r: Record<string, unknown>) {
   };
 }
 
+const jitter = (lo: number, hi: number, d = 1) => Math.round((lo + Math.random() * (hi - lo)) * 10 ** d) / 10 ** d;
+
+// The current prototype hardware only sends temperature. Invent plausible,
+// BENIGN values for the signals it doesn't send yet, so the panel/engine have a
+// full reading while the verdict stays driven by the real temperature. Only
+// fills fields that arrived empty; real values are kept untouched.
+function fillMockSignals(s: ReturnType<typeof sanitizeReading>) {
+  return {
+    ...s,
+    bioimpedanceOhm: s.bioimpedanceOhm ?? jitter(95, 105),
+    activityIndex: s.activityIndex ?? jitter(0.1, 0.3, 2),
+    batteryPct: s.batteryPct || Math.round(jitter(80, 92, 0)),
+  };
+}
+
 app.get('/api/events', (req, res) => {
   if (!isValidToken(String(req.query.token ?? ''))) return res.status(401).end();
   res.writeHead(200, {
@@ -258,7 +273,7 @@ app.post('/api/patients/:id/readings', (req, res) => {
       id: typeof r.id === 'string' ? r.id : `${patientId}-${Date.now()}-${n}`,
       patientId,
       timestamp: typeof r.timestamp === 'string' ? r.timestamp : new Date().toISOString(),
-      ...sanitizeReading(r),
+      ...fillMockSignals(sanitizeReading(r)),
     });
     n += 1;
   }
@@ -304,7 +319,7 @@ app.post('/api/devices/:deviceId/readings', (req, res) => {
       id: typeof r.id === 'string' ? r.id : `${deviceId}-${Date.now()}-${n}`,
       patientId: targetPatientId,
       timestamp: typeof r.timestamp === 'string' ? r.timestamp : new Date().toISOString(),
-      ...sanitizeReading(r),
+      ...fillMockSignals(sanitizeReading(r)),
     });
     n += 1;
   }

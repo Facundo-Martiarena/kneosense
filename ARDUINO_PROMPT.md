@@ -16,15 +16,14 @@ firmware del ESP32 que le pega a su endpoint.
 - Endpoint:  POST https://kneosense-backoffice.onrender.com/api/devices/<DEVICE_ID>/readings
 - <DEVICE_ID> es un id fijo del parche (ej. "esp32-7" o el MAC del ESP32).
 - Sin autenticación. HTTPS obligatorio. Content-Type: application/json.
-- El firmware manda SOLO los valores del sensor (el server genera id/timestamp si no van).
-- Body JSON (los numéricos son opcionales; mandá null o no los incluyas si no tenés el sensor):
+- Este parche SOLO mide TEMPERATURA. El resto de las señales (bioimpedancia,
+  actividad, batería) las inventa el backend automáticamente, así que el firmware
+  NO las manda. El server también genera id/timestamp si no van.
+- Body JSON a enviar (solo las dos temperaturas + quality):
   {
     "tempReferenceC": 33.1,     // °C, temperatura zona sana (referencia). RANGO VÁLIDO 20–45; fuera de eso el server lo descarta.
     "tempAffectedC": 34.8,      // °C, temperatura zona operada. Mismo rango 20–45.
-    "bioimpedanceOhm": 452.0,   // Ω, bioimpedancia (tendencia de edema)
-    "activityIndex": 0.12,      // 0..1, actividad/movimiento (IMU)
-    "batteryPct": 87,           // 0..100, batería
-    "quality": "measured"       // "measured" = dato real; "invalid_contact" si el electrodo no hace contacto
+    "quality": "measured"       // "measured" = dato real; "invalid_contact" si el sensor no hace buen contacto
   }
 - Respuesta OK (HTTP 200):
   { "ok": true, "deviceId": "...", "paired": false, "patientId": null,
@@ -44,13 +43,12 @@ firmware del ESP32 que le pega a su endpoint.
      Una vez pareado, dejá de imprimirlo.
    - Loguee por Serial el HTTP code y el body.
    - Maneje errores: reconexión de WiFi y reintento con backoff si el POST falla.
-2. Sensores asumidos (si no sabés el modelo exacto, dejá funciones placeholder bien
-   marcadas con // TODO devolviendo valores de ejemplo DENTRO del rango válido, y
-   explicá el cableado/pines):
-   - 2x temperatura (ej. DS18B20 o NTC) → tempReferenceC y tempAffectedC (20–45 °C).
-   - bioimpedancia → bioimpedanceOhm.
-   - IMU (ej. MPU6050) → activityIndex normalizado 0..1.
-   - batería por divisor de tensión en un pin ADC → batteryPct.
+2. Sensores: SOLO temperatura (2 sondas). NO implementes bioimpedancia, IMU ni
+   batería — eso lo mockea el backend.
+   - 2x temperatura (ej. DS18B20 o NTC) → tempReferenceC (zona sana) y
+     tempAffectedC (zona operada), ambas en 20–45 °C.
+   - Si no sabés el modelo exacto, dejá la lectura con // TODO devolviendo valores de
+     ejemplo DENTRO de 20–45 °C, y explicá el cableado/pines.
    IMPORTANTE: cuidá la escala de la conversión de temperatura; un valor de ~100 °C
    es un bug típico de cableado/escala y el server lo va a descartar.
 3. Decime qué librerías instalar (Arduino IDE o PlatformIO) y cómo compilar y flashear.
