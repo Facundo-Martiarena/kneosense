@@ -8,12 +8,24 @@ import multer from 'multer';
 
 import type { Response } from 'express';
 
+import { randomUUID } from 'node:crypto';
+
 import { isValidToken, login, logout, requireAuth } from './auth.js';
+import {
+  hashPassword,
+  issuePatientToken,
+  type PatientRequest,
+  requirePatient,
+  revokePatientToken,
+  verifyPassword,
+} from './auth-patient.js';
 import { evaluateReading } from './decision.js';
 import {
   addPhoto,
   addReading,
+  createPatientUser,
   getDeviceByCode,
+  getPatientUserByEmail,
   getPatient,
   getPatients,
   getPhotos,
@@ -151,6 +163,58 @@ app.post('/api/logout', requireAuth, (req, res) => {
   const header = req.header('authorization') ?? '';
   logout(header.startsWith('Bearer ') ? header.slice(7) : '');
   res.json({ ok: true });
+});
+
+// ---- Patient auth (real, token-based) ----
+
+app.post(
+  '/api/patient/register',
+  ah(async (req, res) => {
+    const b = req.body ?? {};
+    const email = typeof b.email === 'string' ? b.email.trim().toLowerCase() : '';
+    const password = typeof b.password === 'string' ? b.password : '';
+    const name = typeof b.name === 'string' && b.name.trim() ? b.name.trim() : email;
+    if (!email || password.length < 4) {
+      return res.status(400).json({ error: 'invalid_email_or_password' });
+    }
+    if (await getPatientUserByEmail(email)) return res.status(409).json({ error: 'email_taken' });
+    const patientId = `pt-${randomUUID().slice(0, 8)}`;
+    await upsertPatient({
+      id: patientId,
+      name,
+      joint: typeof b.joint === 'string' ? b.joint : 'knee',
+      side: 'left',
+      edemaVisible: 'uncertain',
+      erythemaVisible: 'uncertain',
+      pain0to10: null,
+    });
+    await createPatientUser(patientId, email, hashPassword(password), name);
+    res.json({ token: issuePatientToken(patientId), patientId, name });
+  }),
+);
+
+app.post(
+  '/api/patient/login',
+  ah(async (req, res) => {
+    const b = req.body ?? {};
+    const email = typeof b.email === 'string' ? b.email.trim().toLowerCase() : '';
+    const password = typeof b.password === 'string' ? b.password : '';
+    const user = await getPatientUserByEmail(email);
+    if (!user || !verifyPassword(password, user.passwordHash)) {
+      return res.status(401).json({ error: 'invalid_credentials' });
+    }
+    res.json({ token: issuePatientToken(user.patientId), patientId: user.patientId, name: user.name ?? user.patientId });
+  }),
+);
+
+app.post('/api/patient/logout', requirePatient, (req, res) => {
+  const header = req.header('authorization') ?? '';
+  revokePatientToken(header.startsWith('Bearer ') ? header.slice(7) : '');
+  res.json({ ok: true });
+});
+
+app.get('/api/patient/me', requirePatient, (req: PatientRequest, res) => {
+  res.json({ patientId: req.patientId });
 });
 
 /** Patient list with the latest overall level (triage view). Doctor-only. */

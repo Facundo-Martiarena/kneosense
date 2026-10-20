@@ -52,6 +52,13 @@ await db.executeMultiple(`
     paired_at TEXT,
     last_seen TEXT
   );
+  CREATE TABLE IF NOT EXISTS patient_users (
+    patient_id TEXT PRIMARY KEY NOT NULL,
+    email TEXT UNIQUE NOT NULL,
+    password_hash TEXT NOT NULL,
+    name TEXT,
+    created_at TEXT
+  );
 `);
 
 /* eslint-disable @typescript-eslint/no-explicit-any */
@@ -214,6 +221,28 @@ export async function pairDevice(deviceId: string, patientId: string): Promise<v
     });
     await db.execute({ sql: 'DELETE FROM patients WHERE id = ?;', args: [deviceId] }); // drop provisional patient
   }
+}
+
+// ---- Patient users (auth) ----
+
+export type PatientUser = { patientId: string; email: string; passwordHash: string; name: string | null };
+
+export async function getPatientUserByEmail(email: string): Promise<PatientUser | null> {
+  const rs = await db.execute({ sql: 'SELECT * FROM patient_users WHERE email = ?;', args: [email] });
+  const r: any = rs.rows[0];
+  return r ? { patientId: r.patient_id, email: r.email, passwordHash: r.password_hash, name: r.name ?? null } : null;
+}
+
+export async function createPatientUser(
+  patientId: string,
+  email: string,
+  passwordHash: string,
+  name: string,
+): Promise<void> {
+  await db.execute({
+    sql: 'INSERT INTO patient_users (patient_id, email, password_hash, name, created_at) VALUES (?, ?, ?, ?, ?);',
+    args: [patientId, email, passwordHash, name, new Date().toISOString()],
+  });
 }
 
 // ---- Seed (synthetic) ----
