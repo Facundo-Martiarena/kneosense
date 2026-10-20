@@ -13,10 +13,14 @@ import { evaluateReading } from './decision.js';
 import {
   addPhoto,
   addReading,
+  getDeviceByCode,
   getPatient,
   getPatients,
   getPhotos,
   getReadings,
+  listDevices,
+  pairDevice,
+  registerDeviceIfNew,
   seedIfEmpty,
   upsertPatient,
 } from './db.js';
@@ -76,6 +80,22 @@ function broadcast(event: { type: 'sync' | 'photo'; patientId: string }) {
 const QUALITIES: MeasurementQuality[] = ['simulated', 'invalid_contact', 'measured'];
 const quality = (v: unknown): MeasurementQuality =>
   QUALITIES.includes(v as MeasurementQuality) ? (v as MeasurementQuality) : 'simulated';
+
+// Null out physically impossible sensor values so a miswired sensor can't raise a
+// false alert; clamp battery. Keeps the good fields of an otherwise-junk reading.
+const inRange = (v: unknown, lo: number, hi: number): number | null =>
+  typeof v === 'number' && Number.isFinite(v) && v >= lo && v <= hi ? v : null;
+
+function sanitizeReading(r: Record<string, unknown>) {
+  return {
+    tempReferenceC: inRange(r.tempReferenceC, 20, 45),
+    tempAffectedC: inRange(r.tempAffectedC, 20, 45),
+    bioimpedanceOhm: inRange(r.bioimpedanceOhm, 1, 100_000),
+    activityIndex: inRange(r.activityIndex, 0, 1),
+    batteryPct: typeof r.batteryPct === 'number' ? Math.max(0, Math.min(100, Math.round(r.batteryPct))) : 0,
+    quality: quality(r.quality),
+  };
+}
 
 app.get('/api/events', (req, res) => {
   if (!isValidToken(String(req.query.token ?? ''))) return res.status(401).end();
@@ -238,12 +258,7 @@ app.post('/api/patients/:id/readings', (req, res) => {
       id: typeof r.id === 'string' ? r.id : `${patientId}-${Date.now()}-${n}`,
       patientId,
       timestamp: typeof r.timestamp === 'string' ? r.timestamp : new Date().toISOString(),
-      tempReferenceC: typeof r.tempReferenceC === 'number' ? r.tempReferenceC : null,
-      tempAffectedC: typeof r.tempAffectedC === 'number' ? r.tempAffectedC : null,
-      bioimpedanceOhm: typeof r.bioimpedanceOhm === 'number' ? r.bioimpedanceOhm : null,
-      activityIndex: typeof r.activityIndex === 'number' ? r.activityIndex : null,
-      batteryPct: typeof r.batteryPct === 'number' ? r.batteryPct : 0,
-      quality: quality(r.quality),
+      ...sanitizeReading(r),
     });
     n += 1;
   }
@@ -251,6 +266,91 @@ app.post('/api/patients/:id/readings', (req, res) => {
   if (n === 0) return res.status(400).json({ error: 'no_readings' });
   broadcast({ type: 'sync', patientId });
   res.json({ ok: true, patientId, readings: n });
+});
+
+// Device ingest with pairing. The device posts only sensor values; first contact
+// auto-registers it and the response returns a pairingCode (print it on serial).
+// Unpaired readings land on a provisional patient (id = deviceId) until paired.
+app.post('/api/devices/:deviceId/readings', (req, res) => {
+  const deviceId = req.params.deviceId;
+  if (!deviceId) return res.status(400).json({ error: 'missing_device_id' });
+
+  const device = registerDeviceIfNew(deviceId);
+  const targetPatientId = device.patientId ?? deviceId;
+  if (!getPatient(targetPatientId)) {
+    upsertPatient({
+      id: targetPatientId,
+      name: targetPatientId,
+      joint: 'knee',
+      side: 'left',
+      edemaVisible: 'uncertain',
+      erythemaVisible: 'uncertain',
+      pain0to10: null,
+    });
+  }
+
+  const body = req.body ?? {};
+  const items: unknown[] = Array.isArray(body)
+    ? body
+    : Array.isArray(body.readings)
+      ? body.readings
+      : [body];
+
+  let n = 0;
+  for (const raw of items) {
+    if (!raw || typeof raw !== 'object') continue;
+    const r = raw as Record<string, unknown>;
+    addReading({
+      id: typeof r.id === 'string' ? r.id : `${deviceId}-${Date.now()}-${n}`,
+      patientId: targetPatientId,
+      timestamp: typeof r.timestamp === 'string' ? r.timestamp : new Date().toISOString(),
+      ...sanitizeReading(r),
+    });
+    n += 1;
+  }
+
+  if (n === 0) return res.status(400).json({ error: 'no_readings' });
+  broadcast({ type: 'sync', patientId: targetPatientId });
+  res.json({
+    ok: true,
+    deviceId,
+    paired: device.patientId != null,
+    patientId: device.patientId,
+    pairingCode: device.patientId ? undefined : device.pairingCode,
+    readings: n,
+  });
+});
+
+// Pair a device to a patient using the code (used by the patient app).
+app.post('/api/pair', (req, res) => {
+  const b = req.body ?? {};
+  const code = typeof b.code === 'string' ? b.code.trim().toUpperCase() : '';
+  const patientId = typeof b.patientId === 'string' ? b.patientId : '';
+  if (!code || !patientId) return res.status(400).json({ error: 'missing_code_or_patient' });
+
+  const device = getDeviceByCode(code);
+  if (!device) return res.status(404).json({ error: 'invalid_code' });
+
+  if (!getPatient(patientId)) {
+    upsertPatient({
+      id: patientId,
+      name: typeof b.name === 'string' ? b.name : patientId,
+      joint: typeof b.joint === 'string' ? b.joint : 'knee',
+      side: typeof b.side === 'string' ? b.side : 'left',
+      edemaVisible: 'uncertain',
+      erythemaVisible: 'uncertain',
+      pain0to10: null,
+    });
+  }
+
+  pairDevice(device.deviceId, patientId);
+  broadcast({ type: 'sync', patientId });
+  res.json({ ok: true, deviceId: device.deviceId, patientId });
+});
+
+/** Device list with pairing status. Doctor-only. */
+app.get('/api/devices', requireAuth, (_req, res) => {
+  res.json(listDevices());
 });
 
 const PORT = Number(process.env.PORT ?? 3001);

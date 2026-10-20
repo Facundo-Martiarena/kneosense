@@ -2,7 +2,7 @@ import { DatabaseSync } from 'node:sqlite';
 import { fileURLToPath } from 'node:url';
 import { dirname, join } from 'node:path';
 
-import type { MeasurementQuality, Patient, Photo, SensorReading } from './types.js';
+import type { Device, MeasurementQuality, Patient, Photo, SensorReading } from './types.js';
 
 const here = dirname(fileURLToPath(import.meta.url));
 // DB_PATH lets a host point the SQLite file at a persistent volume (e.g. Fly's
@@ -43,6 +43,13 @@ db.exec(`
     note TEXT
   );
   CREATE INDEX IF NOT EXISTS idx_photos_patient ON photos(patient_id);
+  CREATE TABLE IF NOT EXISTS devices (
+    device_id TEXT PRIMARY KEY NOT NULL,
+    patient_id TEXT,
+    pairing_code TEXT NOT NULL,
+    paired_at TEXT,
+    last_seen TEXT
+  );
 `);
 
 type ReadingRow = {
@@ -131,6 +138,77 @@ export function getPhotos(patientId: string): Photo[] {
       quality: r.quality,
       note: r.note,
     }));
+}
+
+// ---- Devices (pairing) ----
+
+type DeviceRow = {
+  device_id: string;
+  patient_id: string | null;
+  pairing_code: string;
+  paired_at: string | null;
+  last_seen: string | null;
+};
+
+function toDevice(r: DeviceRow): Device {
+  return {
+    deviceId: r.device_id,
+    patientId: r.patient_id,
+    pairingCode: r.pairing_code,
+    pairedAt: r.paired_at,
+    lastSeen: r.last_seen,
+  };
+}
+
+// Unambiguous charset (no 0/O/1/I/L) for a human-typed pairing code.
+function genPairingCode(): string {
+  const chars = 'ABCDEFGHJKMNPQRSTUVWXYZ23456789';
+  let s = '';
+  for (let i = 0; i < 6; i++) s += chars[Math.floor(Math.random() * chars.length)];
+  return s;
+}
+
+export function getDevice(deviceId: string): Device | null {
+  const r = db.prepare('SELECT * FROM devices WHERE device_id = ?;').get(deviceId) as DeviceRow | undefined;
+  return r ? toDevice(r) : null;
+}
+
+export function getDeviceByCode(code: string): Device | null {
+  const r = db.prepare('SELECT * FROM devices WHERE pairing_code = ?;').get(code) as DeviceRow | undefined;
+  return r ? toDevice(r) : null;
+}
+
+export function listDevices(): Device[] {
+  return db
+    .prepare('SELECT * FROM devices ORDER BY last_seen DESC;')
+    .all()
+    .map((r) => toDevice(r as DeviceRow));
+}
+
+/** Register the device on first contact (with a fresh pairing code) and touch last_seen. */
+export function registerDeviceIfNew(deviceId: string): Device {
+  const now = new Date().toISOString();
+  if (!getDevice(deviceId)) {
+    db.prepare(
+      'INSERT INTO devices (device_id, patient_id, pairing_code, paired_at, last_seen) VALUES (?, NULL, ?, NULL, ?);',
+    ).run(deviceId, genPairingCode(), now);
+  } else {
+    db.prepare('UPDATE devices SET last_seen = ? WHERE device_id = ?;').run(now, deviceId);
+  }
+  return getDevice(deviceId)!;
+}
+
+/** Link a device to a patient and migrate its provisional readings to that patient. */
+export function pairDevice(deviceId: string, patientId: string): void {
+  db.prepare('UPDATE devices SET patient_id = ?, paired_at = ? WHERE device_id = ?;').run(
+    patientId,
+    new Date().toISOString(),
+    deviceId,
+  );
+  if (deviceId !== patientId) {
+    db.prepare('UPDATE sensor_readings SET patient_id = ? WHERE patient_id = ?;').run(patientId, deviceId);
+    db.prepare('DELETE FROM patients WHERE id = ?;').run(deviceId); // drop the provisional patient row
+  }
 }
 
 // ---- Seed (synthetic) ----

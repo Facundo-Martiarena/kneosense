@@ -14,6 +14,14 @@ export type Patient = {
   pain0to10: number | null;
 };
 
+export type Device = {
+  deviceId: string;
+  patientId: string | null;
+  pairingCode: string;
+  pairedAt: string | null;
+  lastSeen: string | null;
+};
+
 export type SensorReading = {
   id: string;
   patientId: string;
