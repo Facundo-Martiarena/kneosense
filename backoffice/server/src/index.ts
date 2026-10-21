@@ -130,7 +130,9 @@ function fillMockSignals(s: ReturnType<typeof sanitizeReading>) {
   return {
     ...s,
     bioimpedanceOhm: s.bioimpedanceOhm ?? jitter(95, 105),
-    activityIndex: s.activityIndex ?? jitter(0.1, 0.3, 2),
+    // Keep mocked activity in the NORMAL band (≥ ACTIVITY_WATCH 0.3) so the filler
+    // signal never raises a false "poca movilización"; the verdict stays on temp.
+    activityIndex: s.activityIndex ?? jitter(0.4, 0.6, 2),
     batteryPct: s.batteryPct || Math.round(jitter(80, 92, 0)),
   };
 }
