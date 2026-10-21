@@ -21,15 +21,16 @@ modificá lo mínimo necesario y mostrame el diff / las partes que cambian):
    - Sigue sin auth, HTTPS, Content-Type: application/json.
 
 2) MANDAR SOLO TEMPERATURA:
-   Este parche solo mide temperatura. El backend inventa bioimpedancia, actividad y
-   batería, así que el firmware NO los manda más. Sacá del body (y de la lectura de
-   sensores) todo lo que no sea temperatura. El body queda:
+   Este parche usa UN SOLO sensor de temperatura en la zona operada. El backend
+   inventa bioimpedancia, actividad y batería, y trabaja en "modo un solo sensor"
+   (sigue la temperatura de la zona contra la base del paciente + umbral 38 °C), así
+   que el firmware manda SOLO la temperatura de la zona. El body queda:
      {
-       "tempReferenceC": 33.1,   // °C zona sana (referencia), rango válido 20–45
-       "tempAffectedC": 34.8,    // °C zona operada, rango 20–45
+       "tempAffectedC": 34.8,    // °C zona operada, rango válido 20–45
        "quality": "measured"
      }
-   - Si una temp no es válida, mandá null (o "quality":"invalid_contact").
+   - NO mandes "tempReferenceC" (no hay 2º sensor). NUNCA mandes 0: 0 °C no es real y
+     el server lo descarta. Si la lectura no es válida, mandá "quality":"invalid_contact".
    - Ojo con la escala: ~100 °C es un bug de conversión y el server lo descarta.
 
 3) IMPRIMIR EL CÓDIGO DE VINCULACIÓN:

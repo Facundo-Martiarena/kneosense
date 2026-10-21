@@ -37,8 +37,22 @@ function tempDelta(r?: SensorReading | null): number | null {
 }
 
 function evaluateTemperature(r: SensorReading, previous?: SensorReading | null): SignalFinding {
+  // Single-sensor mode: no reference → we can't compute Δ. Fall back to the
+  // absolute fever threshold here and let the per-patient trend (EWMA/CUSUM on
+  // the affected-zone temperature) carry sub-fever elevation.
+  if (r.tempReferenceC == null) {
+    if (r.tempAffectedC == null) {
+      return { key: 'temperature', level: 'unavailable', label: 'Temperatura no disponible', detail: 'Sin lectura de la zona.' };
+    }
+    const absTxt = `Zona afectada ${r.tempAffectedC.toFixed(1)} °C (sin referencia; se evalúa la tendencia).`;
+    if (r.tempAffectedC >= TEMP_ABS_ALERT_C) {
+      return { key: 'temperature', level: 'alert', label: 'Temperatura elevada', detail: `${absTxt} Absoluta ≥38 °C (banda de infección).` };
+    }
+    return { key: 'temperature', level: 'normal', label: 'Temperatura de la zona', detail: absTxt };
+  }
+
   const delta = tempDelta(r);
-  if (delta == null || r.tempAffectedC == null || r.tempReferenceC == null) {
+  if (delta == null || r.tempAffectedC == null) {
     return { key: 'temperature', level: 'unavailable', label: 'Temperatura no disponible', detail: 'Falta referencia o zona afectada.' };
   }
   const deltaTxt = `Δ ${delta.toFixed(1)} °C (afectada ${r.tempAffectedC.toFixed(1)} − ref ${r.tempReferenceC.toFixed(1)})`;
@@ -136,23 +150,31 @@ function evaluatePlacement(r: SensorReading): SignalFinding {
  * even below the absolute thresholds. Complements the single-reading rules.
  */
 function evaluateDeviation(history: SensorReading[]): SignalFinding {
+  // Prefer the differential Δ (two-sensor). If there isn't enough Δ data (e.g.
+  // single-sensor mode, no reference), fall back to the absolute affected-zone
+  // temperature tracked against the patient's own baseline. Same math either way.
   const deltas = history.map(tempDelta).filter((d): d is number => d != null);
-  if (deltas.length < 4) {
+  const affected = history.map((r) => r.tempAffectedC).filter((t): t is number => t != null);
+  const useDelta = deltas.length >= 4;
+  const series = useDelta ? deltas : affected;
+  const unit = useDelta ? 'Δ' : 'zona';
+
+  if (series.length < 4) {
     return { key: 'trend', level: 'unavailable', label: 'Tendencia no disponible', detail: 'Pocas mediciones para una línea de base.' };
   }
-  const k = Math.min(3, deltas.length - 1);
-  const baseline = deltas.slice(0, k).reduce((a, b) => a + b, 0) / k;
+  const k = Math.min(3, series.length - 1);
+  const baseline = series.slice(0, k).reduce((a, b) => a + b, 0) / k;
 
   const alpha = 0.4; // EWMA smoothing
-  let ewma = deltas[0];
-  for (let i = 1; i < deltas.length; i++) ewma = alpha * deltas[i] + (1 - alpha) * ewma;
+  let ewma = series[0];
+  for (let i = 1; i < series.length; i++) ewma = alpha * series[i] + (1 - alpha) * ewma;
 
   const slack = 0.3; // CUSUM allowance before accumulating
   let cusum = 0;
-  for (const d of deltas) cusum = Math.max(0, cusum + (d - baseline - slack));
+  for (const v of series) cusum = Math.max(0, cusum + (v - baseline - slack));
 
   const rise = ewma - baseline;
-  const detail = `Δ +${rise.toFixed(1)} °C vs tu base ${baseline.toFixed(1)} °C (EWMA); acumulado CUSUM ${cusum.toFixed(1)}.`;
+  const detail = `${unit} +${rise.toFixed(1)} °C vs tu base ${baseline.toFixed(1)} °C (EWMA); acumulado CUSUM ${cusum.toFixed(1)}.`;
   if (rise >= 2.0 || cusum >= 3.0) return { key: 'trend', level: 'alert', label: 'Desvío sostenido al alza', detail };
   if (rise >= 1.0 || cusum >= 1.5) return { key: 'trend', level: 'watch', label: 'Tendencia en aumento', detail };
   return { key: 'trend', level: 'normal', label: 'Tendencia estable', detail };
